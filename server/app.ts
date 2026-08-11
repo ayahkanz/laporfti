@@ -7,6 +7,7 @@ import uploadsRouter from "./routes/uploads";
 import settingsRouter from "./routes/settings";
 import authRouter from "./routes/auth";
 import adminUsersRouter from "./routes/adminUsers";
+import { requireLogin } from "./middleware/requireAdmin";
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || "./uploads";
 
@@ -28,10 +29,16 @@ export function createApp() {
   });
   app.use("/api/uploads", publicWriteLimiter);
 
+  // /api/auth/* must stay reachable before login exists (start/callback/me/logout).
+  app.use("/api/auth", authRouter);
+
+  // Everything else requires a logged-in UII account (student or staff) —
+  // the whole app is gated, not just the admin panel.
+  app.use("/api", requireLogin);
+
   app.use("/api/reports", reportsRouter);
   app.use("/api/uploads", uploadsRouter);
   app.use("/api/settings", settingsRouter);
-  app.use("/api/auth", authRouter);
   app.use("/api/admin-users", adminUsersRouter);
 
   app.use("/uploads", express.static(path.resolve(process.cwd(), UPLOAD_DIR)));

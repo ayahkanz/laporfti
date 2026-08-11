@@ -5,7 +5,6 @@ interface MobileBottomNavProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   isAdmin: boolean;
-  onRequestLogin: () => void;
   onLogout: () => void;
 }
 

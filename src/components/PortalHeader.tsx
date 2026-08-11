@@ -1,5 +1,5 @@
 import React from "react";
-import { MessageSquare, CheckCircle2, Clock, AlertCircle, Award, UserCheck, ShieldCheck } from "lucide-react";
+import { MessageSquare, CheckCircle2, Clock, AlertCircle, Award, ShieldCheck } from "lucide-react";
 import { Report, ReportStatus, AdminRole } from "../types";
 
 const ROLE_LABELS: Record<AdminRole, string> = {
@@ -17,7 +17,6 @@ interface PortalHeaderProps {
   adminName?: string;
   adminEmail?: string;
   adminRole?: AdminRole;
-  onRequestLogin: () => void;
   onLogout: () => void;
 }
 
@@ -29,7 +28,6 @@ export default function PortalHeader({
   adminName,
   adminEmail,
   adminRole,
-  onRequestLogin,
   onLogout,
 }: PortalHeaderProps) {
   // Calculate statistics
@@ -47,42 +45,12 @@ export default function PortalHeader({
 
   return (
     <header className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-2xl shadow-xl overflow-hidden mb-6 border border-slate-800" id="portal-header">
-      {/* Role Switcher Bar */}
-      <div className="bg-slate-950/80 px-4 sm:px-6 py-2.5 flex flex-col sm:flex-row justify-between items-center text-xs text-slate-300 border-b border-indigo-950/60 gap-2">
-        <div className="flex items-center gap-2 text-center sm:text-left">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span className="font-medium text-slate-300">
-            {isAdmin ? "Mode Aktif: Dashboard Tindak Lanjut Staf / Dekanat FTI" : "Mode Aktif: Dashboard Pelapor & Mahasiswa"}
-          </span>
-        </div>
-
-        {/* Explicit Role Toggle Switcher */}
-        <div className="flex items-center bg-slate-900 p-1 rounded-xl border border-slate-800 shadow-inner">
-          <button
-            onClick={() => isAdmin && onLogout()}
-            className={`px-3 py-1 rounded-lg font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
-              !isAdmin
-                ? "bg-indigo-600 text-white shadow-sm"
-                : "text-slate-400 hover:text-white"
-            }`}
-            id="role-user-btn"
-          >
-            <UserCheck className="w-3.5 h-3.5" />
-            <span>Dashboard Pelapor</span>
-          </button>
-          <button
-            onClick={() => !isAdmin && onRequestLogin()}
-            className={`px-3 py-1 rounded-lg font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
-              isAdmin
-                ? "bg-amber-500 text-slate-950 shadow-sm font-extrabold"
-                : "text-slate-400 hover:text-amber-400"
-            }`}
-            id="role-admin-btn"
-          >
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Dashboard Staf / Admin</span>
-          </button>
-        </div>
+      {/* Status Bar */}
+      <div className="bg-slate-950/80 px-4 sm:px-6 py-2.5 flex items-center justify-center sm:justify-start text-xs text-slate-300 border-b border-indigo-950/60 gap-2">
+        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span className="font-medium text-slate-300">
+          {isAdmin ? "Mode Aktif: Dashboard Tindak Lanjut Staf / Dekanat FTI" : "Mode Aktif: Dashboard Pelapor & Mahasiswa"}
+        </span>
       </div>
 
       {/* Main Brand Section */}

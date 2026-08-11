@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Search, Calendar, Clock, AlertTriangle, Send, Shield, CornerDownRight, FileText } from "lucide-react";
 import { Report, ReportStatus, UrgencyLevel, ReportComment } from "../types";
+import { apiUrl } from "../lib/api";
 
 interface ReportTrackerProps {
   reports: Report[];
@@ -159,7 +160,7 @@ export default function ReportTracker({
                   {activeReport.attachmentPath && /\.(png|jpe?g|gif|webp)$/i.test(activeReport.attachmentName || "") ? (
                     <div className="max-w-md rounded-lg overflow-hidden border border-slate-200 shadow-sm bg-white p-1">
                       <img
-                        src={`/uploads/${activeReport.attachmentPath}`}
+                        src={apiUrl(`uploads/${activeReport.attachmentPath}`)}
                         alt="Lampiran pendukung"
                         className="w-full max-h-60 object-contain rounded"
                         referrerPolicy="no-referrer"

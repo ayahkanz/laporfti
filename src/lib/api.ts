@@ -1,8 +1,15 @@
 import { Report, ReportComment, ReportStatus, AdminRole } from "../types";
 import { Division } from "./divisions";
 
+// The app can be served from a subpath in production (e.g. "/lapor/"), so
+// every API call must be prefixed with Vite's BASE_URL rather than assuming
+// root ("/"). Centralized here so callers just pass "api/reports" etc.
+export function apiUrl(path: string): string {
+  return `${import.meta.env.BASE_URL}${path.replace(/^\//, "")}`;
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(path, {
+  const res = await fetch(apiUrl(path), {
     headers: { "Content-Type": "application/json" },
     ...options,
   });
@@ -52,7 +59,7 @@ export function addComment(ticketId: string, comment: Omit<ReportComment, "id" |
 export async function uploadFile(file: File): Promise<{ path: string; name: string }> {
   const formData = new FormData();
   formData.append("file", file);
-  const res = await fetch("/api/uploads", { method: "POST", body: formData });
+  const res = await fetch(apiUrl("api/uploads"), { method: "POST", body: formData });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error || `Upload failed: ${res.status}`);

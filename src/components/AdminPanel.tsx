@@ -3,7 +3,7 @@ import { Check, ClipboardList, Clock, RefreshCw, XCircle, ChevronRight, ChevronL
 import { Report, ReportStatus, UrgencyLevel, ReportComment, AdminRole } from "../types";
 import { Division, DIVISION_LABELS, divisionForCategory } from "../lib/divisions";
 import { generateWhatsAppStatusUpdateLink, generateWhatsAppStaffReplyLink } from "../utils/whatsapp";
-import { getHotline, updateHotline, getStaffInDivision, dispositionReport, AdminUserEntry } from "../lib/api";
+import { getHotline, updateHotline, getStaffInDivision, dispositionReport, apiUrl, AdminUserEntry } from "../lib/api";
 import AdminUserManagement from "./AdminUserManagement";
 
 interface AdminPanelProps {
@@ -461,7 +461,7 @@ export default function AdminPanel({ reports, adminRole, adminEmail, adminDivisi
                     {selectedReport.attachmentPath && /\.(png|jpe?g|gif|webp)$/i.test(selectedReport.attachmentName || "") && (
                       <div className="max-w-xs rounded overflow-hidden border border-slate-200 shadow-sm bg-white p-1">
                         <img
-                          src={`/uploads/${selectedReport.attachmentPath}`}
+                          src={apiUrl(`uploads/${selectedReport.attachmentPath}`)}
                           alt="Lampiran"
                           className="w-full max-h-40 object-contain rounded"
                           referrerPolicy="no-referrer"

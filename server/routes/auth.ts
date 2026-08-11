@@ -15,45 +15,54 @@ function getOAuthClient() {
   });
 }
 
-function getAllowedDomains(): string[] {
+// Whole-app access gate: any UII account (student subdomains included), not
+// just the stricter staff-only domain used for admin eligibility below.
+function isUiiOrgEmail(email: string): boolean {
+  const domain = email.split("@")[1]?.toLowerCase();
+  if (!domain) return false;
+  return domain === "uii.ac.id" || domain.endsWith(".uii.ac.id");
+}
+
+function getAllowedAdminDomains(): string[] {
   return (process.env.ALLOWED_EMAIL_DOMAINS || "")
     .split(",")
     .map((d) => d.trim().toLowerCase())
     .filter(Boolean);
 }
 
-function isEmailDomainAllowed(email: string): boolean {
+// Stricter check used only for the one-time Super Admin bootstrap below —
+// keeps that first account on the staff domain, not a student subdomain.
+function isEmailDomainAllowedForAdmin(email: string): boolean {
   const domain = email.split("@")[1]?.toLowerCase();
   if (!domain) return false;
-  return getAllowedDomains().includes(domain);
+  return getAllowedAdminDomains().includes(domain);
 }
 
 type AdminUserRow = { email: string; name: string | null; role: AdminRole; division: Division | null };
 
-// Resolves an authenticated Google email to an admin role + division.
-// - If the email is already registered in admin_users, use that record.
+// Resolves an authenticated Google email to an admin role + division, if any.
+// - If the email is registered in admin_users, use that record's role.
 // - If admin_users is empty (first-ever login), bootstrap this account as
 //   SUPER_ADMIN — optionally locked to SUPER_ADMIN_BOOTSTRAP_EMAIL so a stray
-//   first login from someone else on the same domain can't self-promote.
-// - Otherwise, the account is not registered and login is rejected; a
-//   Super Admin must invite them first via the admin-users management screen.
-function resolveAdminIdentity(email: string, name: string | undefined): Pick<AdminSession, "role" | "division"> | null {
+//   first login from someone else on the domain can't self-promote.
+// - Otherwise the account has no admin role: they still get a normal app
+//   session (any UII account may submit/track reports), just no admin panel.
+function resolveAdminIdentity(email: string, name: string | undefined): Pick<AdminSession, "role" | "division"> {
   const existing = db.prepare("SELECT * FROM admin_users WHERE email = ?").get(email) as AdminUserRow | undefined;
   if (existing) return { role: existing.role, division: existing.division ?? undefined };
 
   const { count } = db.prepare("SELECT COUNT(*) AS count FROM admin_users").get() as { count: number };
-  if (count === 0) {
+  if (count === 0 && isEmailDomainAllowedForAdmin(email)) {
     const bootstrapEmail = process.env.SUPER_ADMIN_BOOTSTRAP_EMAIL?.trim().toLowerCase();
-    if (bootstrapEmail && bootstrapEmail !== email.toLowerCase()) {
-      return null;
+    if (!bootstrapEmail || bootstrapEmail === email.toLowerCase()) {
+      db.prepare(
+        "INSERT INTO admin_users (email, name, role, added_by, created_at) VALUES (?, ?, 'SUPER_ADMIN', ?, ?)"
+      ).run(email, name ?? null, email, new Date().toISOString());
+      return { role: "SUPER_ADMIN" };
     }
-    db.prepare(
-      "INSERT INTO admin_users (email, name, role, added_by, created_at) VALUES (?, ?, 'SUPER_ADMIN', ?, ?)"
-    ).run(email, name ?? null, email, new Date().toISOString());
-    return { role: "SUPER_ADMIN" };
   }
 
-  return null;
+  return { role: undefined, division: undefined };
 }
 
 const cookieOptions = {
@@ -103,21 +112,19 @@ router.get("/google/callback", async (req, res) => {
       return res.redirect(`${APP_URL}/?authError=no_email`);
     }
 
-    if (!isEmailDomainAllowed(payload.email)) {
+    if (!isUiiOrgEmail(payload.email)) {
       return res.redirect(`${APP_URL}/?authError=domain_not_allowed`);
     }
 
     const identity = resolveAdminIdentity(payload.email, payload.name);
-    if (!identity) {
-      return res.redirect(`${APP_URL}/?authError=not_registered`);
-    }
-
     const session: AdminSession = { email: payload.email, name: payload.name, role: identity.role, division: identity.division };
     const sessionToken = signAdminSession(session);
 
-    db.prepare(
-      "INSERT INTO admin_logins (email, name, logged_in_at, ip_address) VALUES (?, ?, ?, ?)"
-    ).run(payload.email, payload.name ?? null, new Date().toISOString(), req.ip ?? null);
+    if (identity.role) {
+      db.prepare(
+        "INSERT INTO admin_logins (email, name, logged_in_at, ip_address) VALUES (?, ?, ?, ?)"
+      ).run(payload.email, payload.name ?? null, new Date().toISOString(), req.ip ?? null);
+    }
 
     res.cookie(SESSION_COOKIE_NAME, sessionToken, cookieOptions);
     res.redirect(`${APP_URL}/`);

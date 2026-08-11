@@ -5,6 +5,9 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
+    // Lets production serve the app from a subpath (e.g. "/lapor/") behind a
+    // reverse proxy without hardcoding it — set VITE_BASE_PATH at build time.
+    base: process.env.VITE_BASE_PATH || '/',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {

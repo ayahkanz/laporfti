@@ -8,6 +8,7 @@ import ReportTracker from "./components/ReportTracker";
 import PublicFeed from "./components/PublicFeed";
 import AdminPanel from "./components/AdminPanel";
 import MobileBottomNav from "./components/MobileBottomNav";
+import LoginGate from "./components/LoginGate";
 import { Building2 } from "lucide-react";
 
 import { Division } from "./lib/divisions";
@@ -15,8 +16,7 @@ import { Division } from "./lib/divisions";
 type AuthState = { status: "loading" | "authenticated" | "unauthenticated"; email?: string; name?: string; role?: AdminRole; division?: Division };
 
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
-  domain_not_allowed: "Login gagal: email Anda bukan email resmi FTI/UII yang diizinkan untuk akses admin.",
-  not_registered: "Login gagal: akun Anda belum didaftarkan sebagai admin/moderator/pimpinan. Hubungi Super Admin untuk didaftarkan.",
+  domain_not_allowed: "Login gagal: portal ini hanya untuk civitas akademika UII (email @uii.ac.id atau subdomainnya, misal @students.uii.ac.id).",
   missing_code: "Login gagal: proses OAuth tidak lengkap. Silakan coba lagi.",
   no_id_token: "Login gagal: Google tidak mengembalikan token identitas. Silakan coba lagi.",
   no_email: "Login gagal: akun Google Anda tidak memiliki email yang dapat diverifikasi.",
@@ -30,7 +30,8 @@ export default function App() {
   const [auth, setAuth] = useState<AuthState>({ status: "loading" });
   const [authErrorMsg, setAuthErrorMsg] = useState<string | null>(null);
 
-  const adminMode = auth.status === "authenticated";
+  const isLoggedIn = auth.status === "authenticated";
+  const isAdminUser = isLoggedIn && !!auth.role;
 
   const refreshReports = async () => {
     const data = await api.getReports();
@@ -47,7 +48,6 @@ export default function App() {
   };
 
   useEffect(() => {
-    refreshReports();
     refreshAuth();
 
     const params = new URLSearchParams(window.location.search);
@@ -60,14 +60,21 @@ export default function App() {
     }
   }, []);
 
+  // The whole app is gated behind login (see server/app.ts requireLogin), so
+  // only fetch reports once we know there's a valid session — otherwise every
+  // request 401s before the user even sees the login screen.
+  useEffect(() => {
+    if (isLoggedIn) refreshReports();
+  }, [isLoggedIn]);
+
   const handleRequestLogin = () => {
-    window.location.href = "/api/auth/google/start";
+    window.location.href = api.apiUrl("api/auth/google/start");
   };
 
   const handleLogout = async () => {
     await api.logout();
+    setReports([]);
     await refreshAuth();
-    await refreshReports();
   };
 
   // Submit report handler
@@ -90,6 +97,20 @@ export default function App() {
     await api.addComment(ticketId, comment);
     await refreshReports();
   };
+
+  if (auth.status === "loading") {
+    return <div className="min-h-screen bg-slate-50/70" id="lapor-handri-app-loading" />;
+  }
+
+  if (auth.status === "unauthenticated") {
+    return (
+      <LoginGate
+        onLogin={handleRequestLogin}
+        errorMsg={authErrorMsg}
+        onDismissError={() => setAuthErrorMsg(null)}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50/70 py-4 sm:py-6 px-3 sm:px-6 lg:px-8 text-slate-800 flex flex-col font-sans pb-20 md:pb-6" id="lapor-handri-app">
@@ -118,17 +139,16 @@ export default function App() {
           reports={reports}
           activeTab={activeTab}
           setActiveTab={setActiveTab}
-          isAdmin={adminMode}
+          isAdmin={isAdminUser}
           adminName={auth.name}
           adminEmail={auth.email}
           adminRole={auth.role}
-          onRequestLogin={handleRequestLogin}
           onLogout={handleLogout}
         />
 
         {/* Main View Shell - dynamically routing requested tab */}
         <main className="flex-1">
-          {adminMode ? (
+          {isAdminUser ? (
             <AdminPanel
               reports={reports}
               adminRole={auth.role}
@@ -186,8 +206,7 @@ export default function App() {
       <MobileBottomNav
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        isAdmin={adminMode}
-        onRequestLogin={handleRequestLogin}
+        isAdmin={isAdminUser}
         onLogout={handleLogout}
       />
     </div>

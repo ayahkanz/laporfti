@@ -3,6 +3,18 @@ import { verifyAdminSession, AdminRole } from "../lib/jwt";
 
 export const SESSION_COOKIE_NAME = "lh_session";
 
+// Any authenticated UII account (student or staff), admin role or not. Gates
+// the app to civitas akademika only — used app-wide in server/app.ts.
+export const requireLogin: RequestHandler = (req, res, next) => {
+  const token = req.cookies?.[SESSION_COOKIE_NAME];
+  const session = token ? verifyAdminSession(token) : null;
+  if (!session) {
+    return res.status(401).json({ error: "unauthorized" });
+  }
+  req.admin = session;
+  next();
+};
+
 export function requireRole(allowedRoles: AdminRole[]): RequestHandler {
   return (req, res, next) => {
     const token = req.cookies?.[SESSION_COOKIE_NAME];
@@ -10,7 +22,7 @@ export function requireRole(allowedRoles: AdminRole[]): RequestHandler {
     if (!session) {
       return res.status(401).json({ error: "unauthorized" });
     }
-    if (!allowedRoles.includes(session.role)) {
+    if (!session.role || !allowedRoles.includes(session.role)) {
       return res.status(403).json({ error: "forbidden" });
     }
     req.admin = session;
