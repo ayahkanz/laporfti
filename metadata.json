@@ -1,0 +1,6 @@
+{
+  "name": "Lapor Handri",
+  "description": "Layanan Pengaduan & Aspirasi Mahasiswa Fakultas Teknologi Industri",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

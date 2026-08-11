@@ -1,0 +1,320 @@
+import { Router } from "express";
+import { z } from "zod";
+import { db } from "../db/connection";
+import { generateTicketId } from "../lib/ticketId";
+import { requireModerator, requireActionable, SESSION_COOKIE_NAME } from "../middleware/requireAdmin";
+import { verifyAdminSession, AdminSession } from "../lib/jwt";
+import { divisionForCategory, categoriesForDivision } from "../../src/lib/divisions";
+import type { Report, ReportComment } from "../../src/types";
+
+const router = Router();
+
+type ReportRow = {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  status: string;
+  urgency: string;
+  reporter_name: string;
+  reporter_role: string | null;
+  reporter_email: string;
+  reporter_whatsapp: string | null;
+  is_public: number;
+  attachment_name: string | null;
+  attachment_path: string | null;
+  disposed_to_email: string | null;
+  disposition_note: string | null;
+  disposed_by: string | null;
+  disposed_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type TimelineRow = { report_id: string; status: string; note: string; timestamp: string };
+type CommentRow = { id: string; report_id: string; sender_name: string; sender_role: "Admin" | "Mahasiswa"; content: string; created_at: string };
+
+const getTimelineStmt = db.prepare("SELECT * FROM report_timeline WHERE report_id = ? ORDER BY id ASC");
+const getCommentsStmt = db.prepare("SELECT * FROM report_comments WHERE report_id = ? ORDER BY created_at ASC");
+
+function toReport(row: ReportRow): Report {
+  const timeline = (getTimelineStmt.all(row.id) as TimelineRow[]).map((t) => ({
+    status: t.status as Report["status"],
+    note: t.note,
+    timestamp: t.timestamp,
+  }));
+  const comments = (getCommentsStmt.all(row.id) as CommentRow[]).map((c) => ({
+    id: c.id,
+    senderName: c.sender_name,
+    senderRole: c.sender_role,
+    content: c.content,
+    createdAt: c.created_at,
+  })) as ReportComment[];
+
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    category: row.category as Report["category"],
+    status: row.status as Report["status"],
+    urgency: row.urgency as Report["urgency"],
+    reporterName: row.reporter_name,
+    reporterRole: (row.reporter_role as Report["reporterRole"]) ?? undefined,
+    reporterEmail: row.reporter_email,
+    reporterWhatsapp: row.reporter_whatsapp ?? undefined,
+    isPublic: !!row.is_public,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    attachmentName: row.attachment_name ?? undefined,
+    attachmentPath: row.attachment_path ?? undefined,
+    disposedToEmail: row.disposed_to_email ?? undefined,
+    dispositionNote: row.disposition_note ?? undefined,
+    disposedBy: row.disposed_by ?? undefined,
+    disposedAt: row.disposed_at ?? undefined,
+    timeline,
+    comments,
+  };
+}
+
+// Whether the given session may act on (update status / reply as Admin) this
+// specific report, based on role scope: Super Admin acts on anything,
+// Moderators only within their division, Staff only on tickets disposed to them.
+function canActOnReport(session: AdminSession, row: ReportRow): boolean {
+  if (session.role === "SUPER_ADMIN") return true;
+  if (session.role === "MODERATOR") {
+    return divisionForCategory(row.category as Report["category"]) === session.division;
+  }
+  if (session.role === "STAFF") {
+    return row.disposed_to_email === session.email;
+  }
+  return false;
+}
+
+function getSession(req: import("express").Request): AdminSession | null {
+  const token = req.cookies?.[SESSION_COOKIE_NAME];
+  return token ? verifyAdminSession(token) : null;
+}
+
+const createReportSchema = z.object({
+  title: z.string().min(10).max(300),
+  description: z.string().min(30).max(5000),
+  category: z.string().min(1),
+  urgency: z.string().min(1),
+  reporterName: z.string().min(1).max(150),
+  reporterRole: z.string().optional(),
+  reporterEmail: z.string().email(),
+  reporterWhatsapp: z.string().max(30).optional(),
+  isPublic: z.boolean(),
+  attachmentName: z.string().max(255).optional(),
+  attachmentPath: z.string().max(500).optional(),
+});
+
+const commentSchema = z.object({
+  senderName: z.string().min(1).max(150),
+  senderRole: z.enum(["Admin", "Mahasiswa"]),
+  content: z.string().min(1).max(3000),
+});
+
+const statusSchema = z.object({
+  status: z.string().min(1),
+  note: z.string().min(1).max(1000),
+});
+
+const dispositionSchema = z.object({
+  assigneeEmail: z.string().email(),
+  note: z.string().max(1000).optional(),
+});
+
+// GET /api/reports
+router.get("/", (req, res) => {
+  const session = getSession(req);
+
+  let sql = "SELECT * FROM reports";
+  const conditions: string[] = [];
+  const params: unknown[] = [];
+
+  if (session?.role === "MODERATOR") {
+    const categories = categoriesForDivision(session.division);
+    if (categories.length === 0) {
+      conditions.push("1 = 0");
+    } else {
+      conditions.push(`category IN (${categories.map(() => "?").join(",")})`);
+      params.push(...categories);
+    }
+  } else if (session?.role === "STAFF") {
+    conditions.push("disposed_to_email = ?");
+    params.push(session.email);
+  } else if (!session && req.query.isPublic === "1") {
+    // Unauthenticated request explicitly asking for the public feed subset.
+    conditions.push("is_public = 1");
+  }
+  // SUPER_ADMIN, PIMPINAN, and unauthenticated bulk fetches (no isPublic
+  // param) get the full list — the latter preserves the existing public
+  // quick-track / "lacak laporan privat by ticket ID" flows, which look up
+  // the report client-side from this array using the ticket ID as a bearer
+  // secret rather than a separate authenticated lookup.
+
+  if (conditions.length) sql += " WHERE " + conditions.join(" AND ");
+  sql += " ORDER BY created_at DESC";
+  const rows = db.prepare(sql).all(...params) as ReportRow[];
+  res.json(rows.map(toReport));
+});
+
+// GET /api/reports/:id
+router.get("/:id", (req, res) => {
+  const row = db.prepare("SELECT * FROM reports WHERE id = ?").get(req.params.id) as ReportRow | undefined;
+  if (!row) return res.status(404).json({ error: "not_found" });
+  res.json(toReport(row));
+});
+
+// POST /api/reports
+router.post("/", (req, res) => {
+  const parsed = createReportSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "invalid_payload", details: parsed.error.flatten() });
+  }
+  const body = parsed.data;
+  const now = new Date().toISOString();
+  const id = generateTicketId();
+
+  const insertReport = db.prepare(`
+    INSERT INTO reports (
+      id, title, description, category, status, urgency,
+      reporter_name, reporter_role, reporter_email, reporter_whatsapp,
+      is_public, attachment_name, attachment_path, created_at, updated_at
+    ) VALUES (
+      @id, @title, @description, @category, 'Menunggu Verifikasi', @urgency,
+      @reporterName, @reporterRole, @reporterEmail, @reporterWhatsapp,
+      @isPublic, @attachmentName, @attachmentPath, @createdAt, @updatedAt
+    )
+  `);
+  const insertTimeline = db.prepare(`
+    INSERT INTO report_timeline (report_id, status, note, timestamp) VALUES (?, ?, ?, ?)
+  `);
+
+  const run = db.transaction(() => {
+    insertReport.run({
+      id,
+      title: body.title,
+      description: body.description,
+      category: body.category,
+      urgency: body.urgency,
+      reporterName: body.reporterName,
+      reporterRole: body.reporterRole ?? null,
+      reporterEmail: body.reporterEmail,
+      reporterWhatsapp: body.reporterWhatsapp ?? null,
+      isPublic: body.isPublic ? 1 : 0,
+      attachmentName: body.attachmentName ?? null,
+      attachmentPath: body.attachmentPath ?? null,
+      createdAt: now,
+      updatedAt: now,
+    });
+    insertTimeline.run(
+      id,
+      "Menunggu Verifikasi",
+      "Laporan berhasil terkirim melalui Portal Lapor Handri. Menunggu peninjauan awal oleh staf administrasi FTI.",
+      now
+    );
+  });
+  run();
+
+  const row = db.prepare("SELECT * FROM reports WHERE id = ?").get(id) as ReportRow;
+  res.status(201).json(toReport(row));
+});
+
+// PATCH /api/reports/:id/status
+router.patch("/:id/status", requireActionable, (req, res) => {
+  const parsed = statusSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "invalid_payload", details: parsed.error.flatten() });
+  }
+  const existing = db.prepare("SELECT * FROM reports WHERE id = ?").get(req.params.id) as ReportRow | undefined;
+  if (!existing) return res.status(404).json({ error: "not_found" });
+  if (!canActOnReport(req.admin!, existing)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+
+  const now = new Date().toISOString();
+  const run = db.transaction(() => {
+    db.prepare("UPDATE reports SET status = ?, updated_at = ? WHERE id = ?").run(parsed.data.status, now, req.params.id);
+    db.prepare("INSERT INTO report_timeline (report_id, status, note, timestamp) VALUES (?, ?, ?, ?)").run(
+      req.params.id,
+      parsed.data.status,
+      parsed.data.note,
+      now
+    );
+  });
+  run();
+
+  const row = db.prepare("SELECT * FROM reports WHERE id = ?").get(req.params.id) as ReportRow;
+  res.json(toReport(row));
+});
+
+// PATCH /api/reports/:id/disposition — assign a ticket to a Staff account
+// within the acting Moderator's own division (or any division for Super Admin).
+router.patch("/:id/disposition", requireModerator, (req, res) => {
+  const parsed = dispositionSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "invalid_payload", details: parsed.error.flatten() });
+  }
+  const existing = db.prepare("SELECT * FROM reports WHERE id = ?").get(req.params.id) as ReportRow | undefined;
+  if (!existing) return res.status(404).json({ error: "not_found" });
+  if (!canActOnReport(req.admin!, existing)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+
+  const assigneeEmail = parsed.data.assigneeEmail.toLowerCase();
+  const assignee = db.prepare("SELECT * FROM admin_users WHERE email = ?").get(assigneeEmail) as
+    | { email: string; role: string; division: string | null }
+    | undefined;
+  if (!assignee || assignee.role !== "STAFF") {
+    return res.status(400).json({ error: "assignee_not_staff" });
+  }
+  const reportDivision = divisionForCategory(existing.category as Report["category"]);
+  if (assignee.division !== reportDivision) {
+    return res.status(400).json({ error: "assignee_wrong_division" });
+  }
+
+  const now = new Date().toISOString();
+  db.prepare(
+    "UPDATE reports SET disposed_to_email = ?, disposition_note = ?, disposed_by = ?, disposed_at = ?, updated_at = ? WHERE id = ?"
+  ).run(assigneeEmail, parsed.data.note ?? null, req.admin!.email, now, now, req.params.id);
+
+  const row = db.prepare("SELECT * FROM reports WHERE id = ?").get(req.params.id) as ReportRow;
+  res.json(toReport(row));
+});
+
+// POST /api/reports/:id/comments
+router.post("/:id/comments", (req, res) => {
+  const parsed = commentSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "invalid_payload", details: parsed.error.flatten() });
+  }
+
+  const existing = db.prepare("SELECT * FROM reports WHERE id = ?").get(req.params.id) as ReportRow | undefined;
+  if (!existing) return res.status(404).json({ error: "not_found" });
+
+  if (parsed.data.senderRole === "Admin") {
+    const session = getSession(req);
+    if (!session) return res.status(401).json({ error: "unauthorized" });
+    if (!canActOnReport(session, existing)) {
+      return res.status(403).json({ error: "forbidden" });
+    }
+  }
+
+  const now = new Date().toISOString();
+  const commentId = (parsed.data.senderRole === "Admin" ? "c-staff-" : "c-") + Math.random().toString(36).slice(2, 11);
+
+  const run = db.transaction(() => {
+    db.prepare(
+      "INSERT INTO report_comments (id, report_id, sender_name, sender_role, content, created_at) VALUES (?, ?, ?, ?, ?, ?)"
+    ).run(commentId, req.params.id, parsed.data.senderName, parsed.data.senderRole, parsed.data.content, now);
+    db.prepare("UPDATE reports SET updated_at = ? WHERE id = ?").run(now, req.params.id);
+  });
+  run();
+
+  const row = db.prepare("SELECT * FROM reports WHERE id = ?").get(req.params.id) as ReportRow;
+  res.status(201).json(toReport(row));
+});
+
+export default router;
