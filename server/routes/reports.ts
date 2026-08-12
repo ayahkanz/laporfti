@@ -1,8 +1,9 @@
 import { Router } from "express";
 import { z } from "zod";
+import ExcelJS from "exceljs";
 import { db } from "../db/connection";
 import { generateTicketId } from "../lib/ticketId";
-import { requireModerator, requireActionable, SESSION_COOKIE_NAME } from "../middleware/requireAdmin";
+import { requireAdmin, requireModerator, requireActionable, SESSION_COOKIE_NAME } from "../middleware/requireAdmin";
 import { verifyAdminSession, AdminSession } from "../lib/jwt";
 import { divisionForCategory, categoriesForDivision } from "../../src/lib/divisions";
 import type { Report, ReportComment } from "../../src/types";
@@ -21,6 +22,7 @@ type ReportRow = {
   reporter_email: string;
   reporter_whatsapp: string | null;
   is_public: number;
+  moderation_status: string;
   attachment_name: string | null;
   attachment_path: string | null;
   disposed_to_email: string | null;
@@ -63,6 +65,7 @@ function toReport(row: ReportRow): Report {
     reporterEmail: row.reporter_email,
     reporterWhatsapp: row.reporter_whatsapp ?? undefined,
     isPublic: !!row.is_public,
+    moderationStatus: row.moderation_status as Report["moderationStatus"],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     attachmentName: row.attachment_name ?? undefined,
@@ -95,6 +98,28 @@ function getSession(req: import("express").Request): AdminSession | null {
   return token ? verifyAdminSession(token) : null;
 }
 
+// Role-based WHERE scoping shared by admin-only report listings (the admin
+// dashboard's GET / and the Excel export): Moderators see only their
+// division's categories, Staff see only tickets disposed to them, Super
+// Admin and Pimpinan see everything (no filter, so this returns empty).
+function buildAdminScopeFilter(session: AdminSession): { conditions: string[]; params: unknown[] } {
+  const conditions: string[] = [];
+  const params: unknown[] = [];
+  if (session.role === "MODERATOR") {
+    const categories = categoriesForDivision(session.division);
+    if (categories.length === 0) {
+      conditions.push("1 = 0");
+    } else {
+      conditions.push(`category IN (${categories.map(() => "?").join(",")})`);
+      params.push(...categories);
+    }
+  } else if (session.role === "STAFF") {
+    conditions.push("disposed_to_email = ?");
+    params.push(session.email);
+  }
+  return { conditions, params };
+}
+
 const createReportSchema = z.object({
   title: z.string().min(10).max(300),
   description: z.string().min(30).max(5000),
@@ -125,28 +150,28 @@ const dispositionSchema = z.object({
   note: z.string().max(1000).optional(),
 });
 
+const moderationSchema = z.object({
+  decision: z.enum(["APPROVED", "REJECTED"]),
+});
+
 // GET /api/reports
 router.get("/", (req, res) => {
   const session = getSession(req);
 
   let sql = "SELECT * FROM reports";
-  const conditions: string[] = [];
-  const params: unknown[] = [];
+  let conditions: string[] = [];
+  let params: unknown[] = [];
 
-  if (session?.role === "MODERATOR") {
-    const categories = categoriesForDivision(session.division);
-    if (categories.length === 0) {
-      conditions.push("1 = 0");
-    } else {
-      conditions.push(`category IN (${categories.map(() => "?").join(",")})`);
-      params.push(...categories);
-    }
-  } else if (session?.role === "STAFF") {
-    conditions.push("disposed_to_email = ?");
-    params.push(session.email);
+  if (session?.role === "MODERATOR" || session?.role === "STAFF") {
+    ({ conditions, params } = buildAdminScopeFilter(session));
   } else if (!session && req.query.isPublic === "1") {
     // Unauthenticated request explicitly asking for the public feed subset.
     conditions.push("is_public = 1");
+  } else if (session && !session.role) {
+    // Logged-in but non-admin (plain UII account, e.g. student/staff/dosen
+    // reporter): only the approved public feed, never private or
+    // unapproved reports belonging to other users.
+    conditions.push("is_public = 1 AND moderation_status = 'APPROVED'");
   }
   // SUPER_ADMIN, PIMPINAN, and unauthenticated bulk fetches (no isPublic
   // param) get the full list — the latter preserves the existing public
@@ -158,6 +183,59 @@ router.get("/", (req, res) => {
   sql += " ORDER BY created_at DESC";
   const rows = db.prepare(sql).all(...params) as ReportRow[];
   res.json(rows.map(toReport));
+});
+
+// GET /api/reports/export — Excel summary of reports scoped to the caller's
+// role, same rules as GET /. Registered before GET /:id so "export" isn't
+// swallowed as a ticket id param.
+router.get("/export", requireAdmin, async (req, res) => {
+  const { conditions, params } = buildAdminScopeFilter(req.admin!);
+
+  let sql = "SELECT * FROM reports";
+  if (conditions.length) sql += " WHERE " + conditions.join(" AND ");
+  sql += " ORDER BY created_at DESC";
+  const rows = db.prepare(sql).all(...params) as ReportRow[];
+
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet("Laporan");
+  sheet.columns = [
+    { header: "Kode Tiket", key: "id", width: 18 },
+    { header: "Judul", key: "title", width: 40 },
+    { header: "Kategori", key: "category", width: 28 },
+    { header: "Urgensi", key: "urgency", width: 14 },
+    { header: "Status", key: "status", width: 22 },
+    { header: "Status Publikasi", key: "publicationStatus", width: 16 },
+    { header: "Status Moderasi", key: "moderationStatus", width: 16 },
+    { header: "Nama Pelapor", key: "reporterName", width: 24 },
+    { header: "Peran Pelapor", key: "reporterRole", width: 20 },
+    { header: "Email Pelapor", key: "reporterEmail", width: 28 },
+    { header: "Tanggal Dibuat", key: "createdAt", width: 20 },
+    { header: "Terakhir Diperbarui", key: "updatedAt", width: 20 },
+  ];
+  sheet.getRow(1).font = { bold: true };
+
+  for (const row of rows) {
+    sheet.addRow({
+      id: row.id,
+      title: row.title,
+      category: row.category,
+      urgency: row.urgency,
+      status: row.status,
+      publicationStatus: row.is_public ? "Publik" : "Privat",
+      moderationStatus: row.is_public ? row.moderation_status : "-",
+      reporterName: row.reporter_name,
+      reporterRole: row.reporter_role ?? "-",
+      reporterEmail: row.reporter_email,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    });
+  }
+
+  const filename = `laporan-lapor-fit-${new Date().toISOString().slice(0, 10)}.xlsx`;
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  await workbook.xlsx.write(res);
+  res.end();
 });
 
 // GET /api/reports/:id
@@ -212,7 +290,7 @@ router.post("/", (req, res) => {
     insertTimeline.run(
       id,
       "Menunggu Verifikasi",
-      "Laporan berhasil terkirim melalui Portal Lapor Handri. Menunggu peninjauan awal oleh staf administrasi FTI.",
+      "Laporan berhasil terkirim melalui Portal Lapor FIT. Menunggu peninjauan awal oleh staf administrasi FTI.",
       now
     );
   });
@@ -279,6 +357,31 @@ router.patch("/:id/disposition", requireModerator, (req, res) => {
   db.prepare(
     "UPDATE reports SET disposed_to_email = ?, disposition_note = ?, disposed_by = ?, disposed_at = ?, updated_at = ? WHERE id = ?"
   ).run(assigneeEmail, parsed.data.note ?? null, req.admin!.email, now, now, req.params.id);
+
+  const row = db.prepare("SELECT * FROM reports WHERE id = ?").get(req.params.id) as ReportRow;
+  res.json(toReport(row));
+});
+
+// PATCH /api/reports/:id/moderation — approve or reject an isPublic report
+// for the public feed. Same actors as disposition: Super Admin anywhere,
+// Moderators only within their own division.
+router.patch("/:id/moderation", requireModerator, (req, res) => {
+  const parsed = moderationSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "invalid_payload", details: parsed.error.flatten() });
+  }
+  const existing = db.prepare("SELECT * FROM reports WHERE id = ?").get(req.params.id) as ReportRow | undefined;
+  if (!existing) return res.status(404).json({ error: "not_found" });
+  if (!canActOnReport(req.admin!, existing)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+
+  const now = new Date().toISOString();
+  db.prepare("UPDATE reports SET moderation_status = ?, updated_at = ? WHERE id = ?").run(
+    parsed.data.decision,
+    now,
+    req.params.id
+  );
 
   const row = db.prepare("SELECT * FROM reports WHERE id = ?").get(req.params.id) as ReportRow;
   res.json(toReport(row));

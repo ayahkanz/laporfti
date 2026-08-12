@@ -2,7 +2,6 @@ export enum ReporterRole {
   MAHASISWA = "Mahasiswa",
   DOSEN = "Dosen FTI",
   TENDIK = "Tenaga Kependidikan (Tendik)",
-  TAMU = "Tamu / Masyarakat Umum",
   ALUMNI = "Alumni"
 }
 
@@ -25,6 +24,8 @@ export enum ReportStatus {
 }
 
 export type AdminRole = "SUPER_ADMIN" | "MODERATOR" | "PIMPINAN" | "STAFF";
+
+export type ModerationStatus = "PENDING" | "APPROVED" | "REJECTED";
 
 export enum UrgencyLevel {
   RENDAH = "Rendah",
@@ -52,6 +53,7 @@ export interface Report {
   reporterEmail: string;
   reporterWhatsapp?: string;
   isPublic: boolean; // can other users see this?
+  moderationStatus?: ModerationStatus; // gates whether an isPublic report actually shows in the public feed
   createdAt: string;
   updatedAt: string;
   attachmentName?: string;

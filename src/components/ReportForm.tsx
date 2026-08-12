@@ -2,7 +2,10 @@ import React, { useState, useRef } from "react";
 import { Send, UploadCloud, CheckCircle2, Copy, Trash2, ArrowRight, Info, Eye, EyeOff, MessageSquareText } from "lucide-react";
 import { Report, ReportCategory, UrgencyLevel, ReportStatus, ReporterRole } from "../types";
 import { generateWhatsAppReportConfirmationLink } from "../utils/whatsapp";
+import { compressImageToMaxSize } from "../utils/imageCompression";
 import { uploadFile } from "../lib/api";
+
+const MAX_ATTACHMENT_BYTES = 2 * 1024 * 1024;
 
 interface ReportFormProps {
   onSubmit: (
@@ -29,6 +32,7 @@ export default function ReportForm({ onSubmit, setActiveTab, setSearchTicketId }
   // Attachment states
   const [attachment, setAttachment] = useState<{ name: string; path: string } | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isCompressing, setIsCompressing] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -55,10 +59,32 @@ export default function ReportForm({ onSubmit, setActiveTab, setSearchTicketId }
   };
 
   const processFile = async (file: File) => {
-    setIsUploading(true);
     setUploadError("");
+
+    // PDFs can't be auto-compressed client-side, so oversized ones are
+    // rejected outright rather than silently uploaded and blocked by the
+    // server's own size limit.
+    if (file.type === "application/pdf" && file.size > MAX_ATTACHMENT_BYTES) {
+      setUploadError("Ukuran PDF maksimal 2MB. Silakan kompres PDF terlebih dahulu atau unggah sebagai gambar.");
+      return;
+    }
+
+    let fileToUpload = file;
+    if (file.type.startsWith("image/") && file.size > MAX_ATTACHMENT_BYTES) {
+      setIsCompressing(true);
+      try {
+        fileToUpload = await compressImageToMaxSize(file, MAX_ATTACHMENT_BYTES);
+      } catch (err) {
+        setIsCompressing(false);
+        setUploadError("Gagal mengompres gambar. Silakan gunakan foto dengan ukuran lebih kecil.");
+        return;
+      }
+      setIsCompressing(false);
+    }
+
+    setIsUploading(true);
     try {
-      const result = await uploadFile(file);
+      const result = await uploadFile(fileToUpload);
       setAttachment({ name: result.name, path: result.path });
     } catch (err) {
       setUploadError("Gagal mengunggah lampiran. Silakan coba lagi.");
@@ -462,7 +488,9 @@ export default function ReportForm({ onSubmit, setActiveTab, setSearchTicketId }
               />
               <UploadCloud className="w-8 h-8 text-slate-400" />
               <div className="text-xs">
-                {isUploading ? (
+                {isCompressing ? (
+                  <span className="text-indigo-600 font-bold">Mengompres gambar...</span>
+                ) : isUploading ? (
                   <span className="text-indigo-600 font-bold">Mengunggah lampiran...</span>
                 ) : (
                   <>
@@ -470,7 +498,9 @@ export default function ReportForm({ onSubmit, setActiveTab, setSearchTicketId }
                   </>
                 )}
               </div>
-              <p className="text-[10px] text-slate-400">Mendukung gambar (PNG, JPG) atau file PDF</p>
+              <p className="text-[10px] text-slate-400">
+                Mendukung gambar (PNG, JPG) atau file PDF, maksimal 2MB. Gambar yang lebih besar akan otomatis dikompres.
+              </p>
             </div>
 
             {uploadError && <p className="text-rose-500 text-xs font-semibold">{uploadError}</p>}
@@ -510,7 +540,7 @@ export default function ReportForm({ onSubmit, setActiveTab, setSearchTicketId }
                 Publikasikan Aduan di Umpan Publik
               </label>
               <p className="text-[10px] text-slate-500 leading-relaxed">
-                Jika diaktifkan, mahasiswa FTI lainnya dapat melihat judul, deskripsi aduan, kategori, dan status tindak lanjut untuk transparansi publik. Identitas Anda (Nama) akan tetap aman disembunyikan jika Anda mencentang opsi "Anonim" di atas.
+                Jika diaktifkan, laporan Anda akan ditinjau lebih dulu oleh Moderator sebelum tayang di Umpan Publik, agar mahasiswa FTI lainnya dapat melihat judul, deskripsi aduan, kategori, dan status tindak lanjut untuk transparansi publik. Identitas Anda (Nama) akan tetap aman disembunyikan jika Anda mencentang opsi "Anonim" di atas.
               </p>
             </div>
           </div>
@@ -521,7 +551,7 @@ export default function ReportForm({ onSubmit, setActiveTab, setSearchTicketId }
           {submitError && <p className="text-rose-500 text-xs font-semibold">{submitError}</p>}
           <button
             type="submit"
-            disabled={isSubmitting || isUploading}
+            disabled={isSubmitting || isUploading || isCompressing}
             className="px-6 py-3.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-xl text-sm font-semibold transition-all shadow-md shadow-indigo-600/10 cursor-pointer flex items-center gap-2 active:scale-[0.98]"
             id="report-submit-btn"
           >

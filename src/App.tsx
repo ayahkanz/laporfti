@@ -71,6 +71,11 @@ export default function App() {
     window.location.href = api.apiUrl("api/auth/google/start");
   };
 
+  const handleDevLogin = async () => {
+    await api.devLogin();
+    await refreshAuth();
+  };
+
   const handleLogout = async () => {
     await api.logout();
     setReports([]);
@@ -99,13 +104,14 @@ export default function App() {
   };
 
   if (auth.status === "loading") {
-    return <div className="min-h-screen bg-slate-50/70" id="lapor-handri-app-loading" />;
+    return <div className="min-h-screen bg-slate-50/70" id="lapor-fit-app-loading" />;
   }
 
   if (auth.status === "unauthenticated") {
     return (
       <LoginGate
         onLogin={handleRequestLogin}
+        onDevLogin={handleDevLogin}
         errorMsg={authErrorMsg}
         onDismissError={() => setAuthErrorMsg(null)}
       />
@@ -113,7 +119,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/70 py-4 sm:py-6 px-3 sm:px-6 lg:px-8 text-slate-800 flex flex-col font-sans pb-20 md:pb-6" id="lapor-handri-app">
+    <div className="min-h-screen bg-slate-50/70 py-4 sm:py-6 px-3 sm:px-6 lg:px-8 text-slate-800 flex flex-col font-sans pb-20 md:pb-6" id="lapor-fit-app">
       {/* Outer wrapper max-w-7xl matching responsive precision guidelines */}
       <div className="w-full max-w-6xl mx-auto flex-1 flex flex-col space-y-5 sm:space-y-6">
 
@@ -123,7 +129,7 @@ export default function App() {
             <Building2 className="w-3.5 h-3.5" />
             <span>Portal FTI UII</span>
             <span>&gt;</span>
-            <span className="text-slate-600">Lapor Handri (Aspirasi & Keluhan)</span>
+            <span className="text-slate-600">Lapor FIT (Aspirasi & Keluhan)</span>
           </div>
         </div>
 

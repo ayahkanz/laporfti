@@ -134,6 +134,34 @@ router.get("/google/callback", async (req, res) => {
   }
 });
 
+// POST /api/auth/dev-login
+// Dev-only shortcut to test the app without a real Google account. Disabled
+// outside development so it can never be reached on the production
+// deployment, even if someone hits it directly. Looks up admin_users the
+// same way the real OAuth callback does, so this dummy account picks up
+// whatever role (if any) is assigned to it in the local dev DB — plain
+// reporter by default, or a real role if you insert an admin_users row.
+router.post("/dev-login", (_req, res) => {
+  if (process.env.NODE_ENV === "production") {
+    return res.status(404).json({ error: "not_found" });
+  }
+
+  const email = "dummy.pelapor@students.uii.ac.id";
+  const admin = db.prepare("SELECT * FROM admin_users WHERE email = ?").get(email) as
+    | { role: AdminRole; division: Division | null }
+    | undefined;
+
+  const session: AdminSession = {
+    email,
+    name: "Pelapor Dummy (Dev)",
+    role: admin?.role,
+    division: admin?.division ?? undefined,
+  };
+  const sessionToken = signAdminSession(session);
+  res.cookie(SESSION_COOKIE_NAME, sessionToken, cookieOptions);
+  res.json({ ok: true });
+});
+
 // GET /api/auth/me
 router.get("/me", (req, res) => {
   const token = req.cookies?.[SESSION_COOKIE_NAME];

@@ -10,11 +10,11 @@ export function seedIfEmpty() {
     INSERT INTO reports (
       id, title, description, category, status, urgency,
       reporter_name, reporter_role, reporter_email, reporter_whatsapp,
-      is_public, attachment_name, attachment_path, created_at, updated_at
+      is_public, moderation_status, attachment_name, attachment_path, created_at, updated_at
     ) VALUES (
       @id, @title, @description, @category, @status, @urgency,
       @reporterName, @reporterRole, @reporterEmail, @reporterWhatsapp,
-      @isPublic, @attachmentName, @attachmentPath, @createdAt, @updatedAt
+      @isPublic, 'APPROVED', @attachmentName, @attachmentPath, @createdAt, @updatedAt
     )
   `);
 

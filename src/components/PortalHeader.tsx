@@ -49,7 +49,7 @@ export default function PortalHeader({
       <div className="bg-slate-950/80 px-4 sm:px-6 py-2.5 flex items-center justify-center sm:justify-start text-xs text-slate-300 border-b border-indigo-950/60 gap-2">
         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
         <span className="font-medium text-slate-300">
-          {isAdmin ? "Mode Aktif: Dashboard Tindak Lanjut Staf / Dekanat FTI" : "Mode Aktif: Dashboard Pelapor & Mahasiswa"}
+          {isAdmin ? "Mode Aktif: Dashboard Tindak Lanjut Staf / Dekanat Fakultas Teknologi Industri" : "Mode Aktif: Dashboard Pelapor & Mahasiswa"}
         </span>
       </div>
 
@@ -62,7 +62,7 @@ export default function PortalHeader({
             </div>
             <div>
               <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white via-indigo-200 to-indigo-100 bg-clip-text text-transparent">
-                Lapor Handri
+                Lapor FIT
               </h1>
               <p className="text-indigo-300 text-xs font-semibold uppercase tracking-wider">
                 Fakultas Teknologi Industri
@@ -137,7 +137,7 @@ export default function PortalHeader({
             <div className="flex items-center gap-2">
               <span className="px-3 py-1 rounded-lg text-xs font-extrabold bg-amber-500 text-slate-950 shadow-sm flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4" />
-                <span>Panel {adminRole ? ROLE_LABELS[adminRole] : "Admin"} — Dekanat FTI</span>
+                <span>Panel {adminRole ? ROLE_LABELS[adminRole] : "Admin"} — Dekanat Fakultas Teknologi Industri</span>
               </span>
               <span className="text-xs text-slate-300">
                 • Mengelola {totalReports} aduan masuk ({pendingReports} belum diverifikasi)

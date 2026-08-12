@@ -52,7 +52,7 @@ export function createApp() {
   } else {
     app.get("/", (_req, res) => {
       res.json({
-        service: "Lapor Handri API",
+        service: "Lapor FIT API",
         status: "ok",
         note: "This is the backend API server. The frontend runs separately on the Vite dev server (default port 3000).",
       });

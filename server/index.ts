@@ -8,5 +8,5 @@ const PORT = Number(process.env.API_PORT) || 8787;
 const app = createApp();
 
 app.listen(PORT, () => {
-  console.log(`Lapor Handri API listening on port ${PORT}`);
+  console.log(`Lapor FIT API listening on port ${PORT}`);
 });

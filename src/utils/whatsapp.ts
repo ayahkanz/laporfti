@@ -19,7 +19,7 @@ export function generateWhatsAppReportConfirmationLink(report: Report): string {
   const phone = formatPhoneNumber(report.reporterWhatsapp || "");
   const appUrl = window.location.origin;
 
-  const text = `*KONFIRMASI LAPORAN - LAPOR HANDRI FTI UII* 🏛️\n\n` +
+  const text = `*KONFIRMASI LAPORAN - LAPOR FIT FTI UII* 🏛️\n\n` +
     `Halo *${report.reporterName || "Mahasiswa FTI"}*,\n` +
     `Laporan aduan/aspirasi Anda telah berhasil terdaftar dalam sistem.\n\n` +
     `📌 *Kode Tiket:* \`${report.id}\`\n` +
@@ -46,15 +46,15 @@ export function generateWhatsAppStatusUpdateLink(
   const phone = formatPhoneNumber(report.reporterWhatsapp || "");
   const appUrl = window.location.origin;
 
-  const text = `*UPDATE STATUS ADUAN - LAPOR HANDRI FTI UII* 🔔\n\n` +
+  const text = `*UPDATE STATUS ADUAN - LAPOR FIT FTI UII* 🔔\n\n` +
     `Yth. *${report.reporterName || "Pelapor"}*,\n` +
     `Pengaduan Anda dengan kode tiket *${report.id}* telah ditindaklanjuti oleh Dekanat/Staf FTI UII.\n\n` +
     `📋 *Judul Laporan:* ${report.title}\n` +
     `📊 *Status Terbaru:* *${newStatus.toUpperCase()}*\n` +
     `💬 *Catatan Tindak Lanjut:* "${note || "Status laporan telah diperbarui."}"\n\n` +
-    `Lacak linimasa selengkapnya di portal Lapor Handri:\n` +
+    `Lacak linimasa selengkapnya di portal Lapor FIT:\n` +
     `🔗 ${appUrl}\n\n` +
-    `_Lapor Handri • Fakultas Teknologi Industri Universitas Islam Indonesia_`;
+    `_Lapor FIT • Fakultas Teknologi Industri Universitas Islam Indonesia_`;
 
   return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
 }
@@ -65,18 +65,18 @@ export function generateWhatsAppStatusUpdateLink(
 export function generateWhatsAppStaffReplyLink(
   report: Report,
   replyText: string,
-  staffName: string = "Staf Handri FTI"
+  staffName: string = "Staf FTI"
 ): string {
   const phone = formatPhoneNumber(report.reporterWhatsapp || "");
   const appUrl = window.location.origin;
 
-  const text = `*BALASAN RESMI STAF - LAPOR HANDRI FTI UII* 💬\n\n` +
+  const text = `*BALASAN RESMI STAF - LAPOR FIT FTI UII* 💬\n\n` +
     `Halo *${report.reporterName || "Pelapor"}*,\n` +
     `Terdapat balasan resmi dari *${staffName}* terkait pengaduan tiket *${report.id}*:\n\n` +
     `"${replyText}"\n\n` +
-    `Lihat rincian & kirim balasan melalui portal Lapor Handri:\n` +
+    `Lihat rincian & kirim balasan melalui portal Lapor FIT:\n` +
     `🔗 ${appUrl}\n\n` +
-    `_Lapor Handri FTI UII_`;
+    `_Lapor FIT FTI UII_`;
 
   return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
 }

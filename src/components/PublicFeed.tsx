@@ -28,8 +28,9 @@ export default function PublicFeed({ reports, setActiveTab, setSearchTicketId }:
     }));
   };
 
-  // Filter public reports
-  const publicReports = reports.filter((r) => r.isPublic);
+  // Filter public reports — only ones a Moderator/Super Admin has approved
+  // actually show up here, even though the reporter opted in to publishing.
+  const publicReports = reports.filter((r) => r.isPublic && r.moderationStatus === "APPROVED");
 
   const filteredReports = publicReports.filter((report) => {
     const matchesSearch =

@@ -49,6 +49,20 @@ export function dispositionReport(ticketId: string, assigneeEmail: string, note?
   });
 }
 
+export function moderateReport(ticketId: string, decision: "APPROVED" | "REJECTED"): Promise<Report> {
+  return request<Report>(`/api/reports/${encodeURIComponent(ticketId)}/moderation`, {
+    method: "PATCH",
+    body: JSON.stringify({ decision }),
+  });
+}
+
+// Plain URL, not a fetch — clicking it as a normal same-origin navigation
+// sends the session cookie automatically and lets the browser handle the
+// Content-Disposition download, no blob handling needed.
+export function exportReportsUrl(): string {
+  return apiUrl("api/reports/export");
+}
+
 export function addComment(ticketId: string, comment: Omit<ReportComment, "id" | "createdAt">): Promise<Report> {
   return request<Report>(`/api/reports/${encodeURIComponent(ticketId)}/comments`, {
     method: "POST",
@@ -92,6 +106,12 @@ export function getMe(): Promise<AuthMe> {
 
 export async function logout(): Promise<void> {
   await request("/api/auth/logout", { method: "POST" });
+}
+
+// Dev-only: log in as a dummy reporter account without going through Google
+// OAuth. The server rejects this outside development.
+export async function devLogin(): Promise<void> {
+  await request("/api/auth/dev-login", { method: "POST" });
 }
 
 export interface AdminUserEntry {

@@ -1,13 +1,14 @@
 import React from "react";
-import { Award, LogIn, Building2 } from "lucide-react";
+import { Award, LogIn, Building2, FlaskConical } from "lucide-react";
 
 interface LoginGateProps {
   onLogin: () => void;
+  onDevLogin?: () => void;
   errorMsg?: string | null;
   onDismissError?: () => void;
 }
 
-export default function LoginGate({ onLogin, errorMsg, onDismissError }: LoginGateProps) {
+export default function LoginGate({ onLogin, onDevLogin, errorMsg, onDismissError }: LoginGateProps) {
   return (
     <div className="min-h-screen bg-slate-50/70 flex items-center justify-center p-6 font-sans" id="login-gate">
       <div className="w-full max-w-md bg-white rounded-2xl border border-slate-100 shadow-sm p-8 text-center space-y-6">
@@ -15,7 +16,7 @@ export default function LoginGate({ onLogin, errorMsg, onDismissError }: LoginGa
           <Award className="w-8 h-8 text-indigo-600" />
         </div>
         <div className="space-y-2">
-          <h1 className="text-xl font-extrabold text-slate-900">Lapor Handri</h1>
+          <h1 className="text-xl font-extrabold text-slate-900">Lapor FIT</h1>
           <p className="text-xs text-slate-500 uppercase tracking-wider font-bold flex items-center justify-center gap-1.5">
             <Building2 className="w-3.5 h-3.5" />
             Fakultas Teknologi Industri UII
@@ -43,6 +44,17 @@ export default function LoginGate({ onLogin, errorMsg, onDismissError }: LoginGa
           <LogIn className="w-4 h-4" />
           Login dengan Google
         </button>
+
+        {import.meta.env.DEV && onDevLogin && (
+          <button
+            onClick={onDevLogin}
+            className="w-full px-6 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-xl font-semibold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+            id="dev-login-btn"
+          >
+            <FlaskConical className="w-3.5 h-3.5" />
+            [Dev] Login sebagai Pelapor Dummy
+          </button>
+        )}
       </div>
     </div>
   );

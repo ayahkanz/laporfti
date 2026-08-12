@@ -1,4 +1,4 @@
-# Panduan Alur Kerja RBAC & Disposisi Tiket — Lapor Handri
+# Panduan Alur Kerja RBAC & Disposisi Tiket — Lapor FIT
 
 Dokumen ini menjelaskan bagaimana laporan/aduan mengalir dari mahasiswa sampai ke staf yang menangani, dan peran masing-masing role dalam sistem.
 
