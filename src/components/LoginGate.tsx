@@ -8,6 +8,14 @@ interface LoginGateProps {
   onDismissError?: () => void;
 }
 
+// Defense in depth alongside import.meta.env.DEV: if a build ever gets
+// bundled in dev mode by mistake (e.g. NODE_ENV=development leaking into
+// the build shell), this still keeps the dev-only login off any real host.
+function isLocalhost(): boolean {
+  const host = window.location.hostname;
+  return host === "localhost" || host === "127.0.0.1";
+}
+
 export default function LoginGate({ onLogin, onDevLogin, errorMsg, onDismissError }: LoginGateProps) {
   return (
     <div className="min-h-screen bg-slate-50/70 flex items-center justify-center p-6 font-sans" id="login-gate">
@@ -45,7 +53,7 @@ export default function LoginGate({ onLogin, onDevLogin, errorMsg, onDismissErro
           Login dengan Google
         </button>
 
-        {import.meta.env.DEV && onDevLogin && (
+        {import.meta.env.DEV && onDevLogin && isLocalhost() && (
           <button
             onClick={onDevLogin}
             className="w-full px-6 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-xl font-semibold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer"

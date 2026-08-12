@@ -7,7 +7,7 @@
     "dev": "concurrently -n web,api -c blue,green \"vite --port=3000 --host=0.0.0.0\" \"tsx watch server/index.ts\"",
     "dev:web": "vite --port=3000 --host=0.0.0.0",
     "dev:api": "tsx watch server/index.ts",
-    "build": "vite build",
+    "build": "vite build --mode production",
     "start": "NODE_ENV=production tsx server/index.ts",
     "preview": "vite preview",
     "clean": "rm -rf dist data/*.db* uploads/*",
