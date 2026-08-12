@@ -1,0 +1,82 @@
+import { Report, ReportStatus } from "../types";
+
+/**
+ * Clean phone number to international WhatsApp format (e.g. 0812... -> 62812...)
+ */
+export function formatPhoneNumber(phone: string): string {
+  if (!phone) return "";
+  let cleaned = phone.replace(/[^0-9]/g, "");
+  if (cleaned.startsWith("0")) {
+    cleaned = "62" + cleaned.slice(1);
+  }
+  return cleaned;
+}
+
+/**
+ * Generate WhatsApp confirmation link when student submits a new report
+ */
+export function generateWhatsAppReportConfirmationLink(report: Report): string {
+  const phone = formatPhoneNumber(report.reporterWhatsapp || "");
+  const appUrl = window.location.origin;
+
+  const text = `*KONFIRMASI LAPORAN - LAPOR FIT FTI UII* 🏛️\n\n` +
+    `Halo *${report.reporterName || "Mahasiswa FTI"}*,\n` +
+    `Laporan aduan/aspirasi Anda telah berhasil terdaftar dalam sistem.\n\n` +
+    `📌 *Kode Tiket:* \`${report.id}\`\n` +
+    `📝 *Judul:* ${report.title}\n` +
+    `📂 *Kategori:* ${report.category}\n` +
+    `⏱️ *Status Saat Ini:* ${report.status}\n\n` +
+    `Anda dapat memantau perkembangan penanganan laporan kapan saja melalui tautan portal:\n` +
+    `🔗 ${appUrl}\n\n` +
+    `_Terima kasih atas partisipasi Anda dalam menjaga kualitas layanan FTI UII._`;
+
+  return phone
+    ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
+    : `https://wa.me/?text=${encodeURIComponent(text)}`;
+}
+
+/**
+ * Generate WhatsApp notification link when staff updates status
+ */
+export function generateWhatsAppStatusUpdateLink(
+  report: Report,
+  newStatus: ReportStatus,
+  note: string
+): string {
+  const phone = formatPhoneNumber(report.reporterWhatsapp || "");
+  const appUrl = window.location.origin;
+
+  const text = `*UPDATE STATUS ADUAN - LAPOR FIT FTI UII* 🔔\n\n` +
+    `Yth. *${report.reporterName || "Pelapor"}*,\n` +
+    `Pengaduan Anda dengan kode tiket *${report.id}* telah ditindaklanjuti oleh Dekanat/Staf FTI UII.\n\n` +
+    `📋 *Judul Laporan:* ${report.title}\n` +
+    `📊 *Status Terbaru:* *${newStatus.toUpperCase()}*\n` +
+    `💬 *Catatan Tindak Lanjut:* "${note || "Status laporan telah diperbarui."}"\n\n` +
+    `Lacak linimasa selengkapnya di portal Lapor FIT:\n` +
+    `🔗 ${appUrl}\n\n` +
+    `_Lapor FIT • Fakultas Teknologi Industri Universitas Islam Indonesia_`;
+
+  return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+}
+
+/**
+ * Generate WhatsApp notification link when staff sends a direct message/reply
+ */
+export function generateWhatsAppStaffReplyLink(
+  report: Report,
+  replyText: string,
+  staffName: string = "Staf FTI"
+): string {
+  const phone = formatPhoneNumber(report.reporterWhatsapp || "");
+  const appUrl = window.location.origin;
+
+  const text = `*BALASAN RESMI STAF - LAPOR FIT FTI UII* 💬\n\n` +
+    `Halo *${report.reporterName || "Pelapor"}*,\n` +
+    `Terdapat balasan resmi dari *${staffName}* terkait pengaduan tiket *${report.id}*:\n\n` +
+    `"${replyText}"\n\n` +
+    `Lihat rincian & kirim balasan melalui portal Lapor FIT:\n` +
+    `🔗 ${appUrl}\n\n` +
+    `_Lapor FIT FTI UII_`;
+
+  return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+}
