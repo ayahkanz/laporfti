@@ -41,7 +41,7 @@ export default function LoginGate({ onLogin, onDevLogin, errorMsg, onDismissErro
         )}
 
         <p className="text-sm text-slate-600 leading-relaxed">
-          Portal ini khusus untuk civitas akademika Universitas Islam Indonesia. Silakan login dengan akun Google UII Anda (<span className="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">@uii.ac.id</span> / <span className="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">@students.uii.ac.id</span>) untuk melanjutkan.
+          Portal ini khusus untuk sivitas akademika Universitas Islam Indonesia. Silakan login dengan akun Google UII Anda (<span className="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">@uii.ac.id</span> / <span className="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">@students.uii.ac.id</span>) untuk melanjutkan.
         </p>
 
         <button
