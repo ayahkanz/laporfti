@@ -66,8 +66,12 @@ export function updateReportCategory(ticketId: string, category: ReportCategory,
 // Plain URL, not a fetch — clicking it as a normal same-origin navigation
 // sends the session cookie automatically and lets the browser handle the
 // Content-Disposition download, no blob handling needed.
-export function exportReportsUrl(): string {
-  return apiUrl("api/reports/export");
+export function exportReportsUrl(filters?: { status?: string; category?: string }): string {
+  const query = new URLSearchParams();
+  if (filters?.status && filters.status !== "ALL") query.set("status", filters.status);
+  if (filters?.category && filters.category !== "ALL") query.set("category", filters.category);
+  const qs = query.toString();
+  return apiUrl("api/reports/export") + (qs ? `?${qs}` : "");
 }
 
 export function addComment(ticketId: string, comment: Omit<ReportComment, "id" | "createdAt">): Promise<Report> {

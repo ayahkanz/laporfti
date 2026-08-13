@@ -47,6 +47,9 @@ export default function AdminPanel({ reports, adminRole, adminEmail, adminDivisi
   const [categoryNoteInput, setCategoryNoteInput] = useState("");
   const [updatingCategory, setUpdatingCategory] = useState(false);
 
+  const [exportStatusFilter, setExportStatusFilter] = useState<string>("ALL");
+  const [exportCategoryFilter, setExportCategoryFilter] = useState<string>("ALL");
+
   useEffect(() => {
     getHotline().then((data) => setHotlinePhone(data.phone)).catch(() => {});
   }, []);
@@ -57,6 +60,7 @@ export default function AdminPanel({ reports, adminRole, adminEmail, adminDivisi
       await updateHotline({ phone: hotlinePhone });
       showNotification("Nomor WhatsApp hotline berhasil disimpan!", "success");
     } catch (err) {
+      console.error(err);
       showNotification("Gagal menyimpan nomor hotline.", "info");
     } finally {
       setHotlineSaving(false);
@@ -118,6 +122,7 @@ export default function AdminPanel({ reports, adminRole, adminEmail, adminDivisi
       setDispositionNoteInput("");
       showNotification("Laporan berhasil didisposisikan ke staf terkait!", "success");
     } catch (err) {
+      console.error(err);
       showNotification("Gagal mendisposisikan laporan.", "info");
     } finally {
       setDisposing(false);
@@ -134,6 +139,7 @@ export default function AdminPanel({ reports, adminRole, adminEmail, adminDivisi
       setCategoryNoteInput("");
       showNotification("Kategori laporan berhasil diperbarui!", "success");
     } catch (err) {
+      console.error(err);
       showNotification("Gagal mengubah kategori laporan.", "info");
     } finally {
       setUpdatingCategory(false);
@@ -150,6 +156,7 @@ export default function AdminPanel({ reports, adminRole, adminEmail, adminDivisi
         "success"
       );
     } catch (err) {
+      console.error(err);
       showNotification("Gagal memperbarui status moderasi. Sesi admin Anda mungkin sudah berakhir, silakan login ulang.", "info");
     }
   };
@@ -163,6 +170,7 @@ export default function AdminPanel({ reports, adminRole, adminEmail, adminDivisi
       setNoteInput("");
       showNotification("Status laporan & catatan linimasa berhasil diperbarui!", "success");
     } catch (err) {
+      console.error(err);
       showNotification("Gagal memperbarui status. Sesi admin Anda mungkin sudah berakhir, silakan login ulang.", "info");
     }
   };
@@ -193,6 +201,7 @@ export default function AdminPanel({ reports, adminRole, adminEmail, adminDivisi
         showNotification("Balasan resmi tersimpan. Pelapor tidak mencantumkan nomor WhatsApp.", "info");
       }
     } catch (err) {
+      console.error(err);
       showNotification("Gagal mengirim balasan. Sesi admin Anda mungkin sudah berakhir, silakan login ulang.", "info");
     }
   };
@@ -234,8 +243,32 @@ export default function AdminPanel({ reports, adminRole, adminEmail, adminDivisi
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={exportStatusFilter}
+            onChange={(e) => setExportStatusFilter(e.target.value)}
+            className="px-2.5 py-2 bg-slate-800 text-slate-100 rounded-xl text-xs font-semibold border border-slate-600/60 cursor-pointer"
+            id="export-status-filter"
+            title="Filter status untuk ekspor Excel"
+          >
+            <option value="ALL">Semua Status</option>
+            {Object.values(ReportStatus).map((status) => (
+              <option key={status} value={status}>{status}</option>
+            ))}
+          </select>
+          <select
+            value={exportCategoryFilter}
+            onChange={(e) => setExportCategoryFilter(e.target.value)}
+            className="px-2.5 py-2 bg-slate-800 text-slate-100 rounded-xl text-xs font-semibold border border-slate-600/60 cursor-pointer"
+            id="export-category-filter"
+            title="Filter kategori untuk ekspor Excel"
+          >
+            <option value="ALL">Semua Kategori</option>
+            {Object.values(ReportCategory).map((category) => (
+              <option key={category} value={category}>{category}</option>
+            ))}
+          </select>
           <a
-            href={exportReportsUrl()}
+            href={exportReportsUrl({ status: exportStatusFilter, category: exportCategoryFilter })}
             className="px-3.5 py-2 bg-slate-700/80 hover:bg-slate-600 text-slate-100 rounded-xl text-xs font-bold border border-slate-500/40 flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
             id="export-reports-btn"
           >
@@ -349,12 +382,22 @@ export default function AdminPanel({ reports, adminRole, adminEmail, adminDivisi
       )}
 
       {notification && (
-        <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-xl text-xs font-semibold flex items-center justify-between shadow-sm animate-fade-in" id="admin-notification">
+        <div
+          className={`${
+            notification.type === "success"
+              ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+              : "bg-rose-50 border-rose-200 text-rose-800"
+          } border px-4 py-3 rounded-xl text-xs font-semibold flex items-center justify-between shadow-sm animate-fade-in`}
+          id="admin-notification"
+        >
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span className={`w-2 h-2 rounded-full animate-pulse ${notification.type === "success" ? "bg-emerald-500" : "bg-rose-500"}`}></span>
             <span>{notification.message}</span>
           </div>
-          <button onClick={() => setNotification(null)} className="text-emerald-500 hover:text-emerald-800 font-bold text-lg select-none px-2 cursor-pointer">×</button>
+          <button
+            onClick={() => setNotification(null)}
+            className={`font-bold text-lg select-none px-2 cursor-pointer ${notification.type === "success" ? "text-emerald-500 hover:text-emerald-800" : "text-rose-500 hover:text-rose-800"}`}
+          >×</button>
         </div>
       )}
 

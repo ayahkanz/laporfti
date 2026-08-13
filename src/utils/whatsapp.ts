@@ -1,5 +1,9 @@
 import { Report, ReportStatus } from "../types";
 
+// Public-facing short link for the portal (redirects to production), used
+// in all outbound WhatsApp messages instead of the raw origin.
+const PORTAL_LINK = "https://s.id/LaporFTI";
+
 /**
  * Clean phone number to international WhatsApp format (e.g. 0812... -> 62812...)
  */
@@ -17,7 +21,7 @@ export function formatPhoneNumber(phone: string): string {
  */
 export function generateWhatsAppReportConfirmationLink(report: Report): string {
   const phone = formatPhoneNumber(report.reporterWhatsapp || "");
-  const appUrl = window.location.origin;
+  const appUrl = PORTAL_LINK;
 
   const text = `*KONFIRMASI LAPORAN - LAPOR FIT FTI UII* 🏛️\n\n` +
     `Halo *${report.reporterName || "Mahasiswa FTI"}*,\n` +
@@ -44,7 +48,7 @@ export function generateWhatsAppStatusUpdateLink(
   note: string
 ): string {
   const phone = formatPhoneNumber(report.reporterWhatsapp || "");
-  const appUrl = window.location.origin;
+  const appUrl = PORTAL_LINK;
 
   const text = `*UPDATE STATUS ADUAN - LAPOR FIT FTI UII* 🔔\n\n` +
     `Yth. *${report.reporterName || "Pelapor"}*,\n` +
@@ -68,7 +72,7 @@ export function generateWhatsAppStaffReplyLink(
   staffName: string = "Staf FTI"
 ): string {
   const phone = formatPhoneNumber(report.reporterWhatsapp || "");
-  const appUrl = window.location.origin;
+  const appUrl = PORTAL_LINK;
 
   const text = `*BALASAN RESMI STAF - LAPOR FIT FTI UII* 💬\n\n` +
     `Halo *${report.reporterName || "Pelapor"}*,\n` +

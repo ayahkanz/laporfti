@@ -6,7 +6,7 @@ import { generateTicketId } from "../lib/ticketId";
 import { requireAdmin, requireModerator, requireActionable, SESSION_COOKIE_NAME } from "../middleware/requireAdmin";
 import { verifyAdminSession, AdminSession } from "../lib/jwt";
 import { divisionForCategory, categoriesForDivision } from "../../src/lib/divisions";
-import { ReportCategory } from "../../src/types";
+import { ReportCategory, ReportStatus } from "../../src/types";
 import type { Report, ReportComment } from "../../src/types";
 
 const router = Router();
@@ -196,6 +196,17 @@ router.get("/", (req, res) => {
 // swallowed as a ticket id param.
 router.get("/export", requireAdmin, async (req, res) => {
   const { conditions, params } = buildAdminScopeFilter(req.admin!);
+
+  const statusFilter = typeof req.query.status === "string" ? req.query.status : undefined;
+  if (statusFilter && (Object.values(ReportStatus) as string[]).includes(statusFilter)) {
+    conditions.push("status = ?");
+    params.push(statusFilter);
+  }
+  const categoryFilter = typeof req.query.category === "string" ? req.query.category : undefined;
+  if (categoryFilter && (Object.values(ReportCategory) as string[]).includes(categoryFilter)) {
+    conditions.push("category = ?");
+    params.push(categoryFilter);
+  }
 
   let sql = "SELECT * FROM reports";
   if (conditions.length) sql += " WHERE " + conditions.join(" AND ");
