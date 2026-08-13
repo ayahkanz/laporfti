@@ -6,6 +6,7 @@ import { generateTicketId } from "../lib/ticketId";
 import { requireAdmin, requireModerator, requireActionable, SESSION_COOKIE_NAME } from "../middleware/requireAdmin";
 import { verifyAdminSession, AdminSession } from "../lib/jwt";
 import { divisionForCategory, categoriesForDivision } from "../../src/lib/divisions";
+import { ReportCategory } from "../../src/types";
 import type { Report, ReportComment } from "../../src/types";
 
 const router = Router();
@@ -152,6 +153,11 @@ const dispositionSchema = z.object({
 
 const moderationSchema = z.object({
   decision: z.enum(["APPROVED", "REJECTED"]),
+});
+
+const categorySchema = z.object({
+  category: z.nativeEnum(ReportCategory),
+  note: z.string().max(500).optional(),
 });
 
 // GET /api/reports
@@ -382,6 +388,55 @@ router.patch("/:id/moderation", requireModerator, (req, res) => {
     now,
     req.params.id
   );
+
+  const row = db.prepare("SELECT * FROM reports WHERE id = ?").get(req.params.id) as ReportRow;
+  res.json(toReport(row));
+});
+
+// PATCH /api/reports/:id/category — reclassify a miscategorized report so it
+// routes to the correct division. Same actors as disposition/moderation.
+// If the new category maps to a different division than the old one, any
+// existing disposition is cleared — a staff member in the old division
+// shouldn't keep a ticket that's no longer theirs.
+router.patch("/:id/category", requireModerator, (req, res) => {
+  const parsed = categorySchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "invalid_payload", details: parsed.error.flatten() });
+  }
+  const existing = db.prepare("SELECT * FROM reports WHERE id = ?").get(req.params.id) as ReportRow | undefined;
+  if (!existing) return res.status(404).json({ error: "not_found" });
+  if (!canActOnReport(req.admin!, existing)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+
+  const oldCategory = existing.category;
+  const newCategory = parsed.data.category;
+  const oldDivision = divisionForCategory(oldCategory as Report["category"]);
+  const newDivision = divisionForCategory(newCategory as Report["category"]);
+  const movedDivision = oldDivision !== newDivision;
+  const now = new Date().toISOString();
+
+  const run = db.transaction(() => {
+    if (movedDivision) {
+      db.prepare(
+        "UPDATE reports SET category = ?, disposed_to_email = NULL, disposition_note = NULL, disposed_by = NULL, disposed_at = NULL, updated_at = ? WHERE id = ?"
+      ).run(newCategory, now, req.params.id);
+    } else {
+      db.prepare("UPDATE reports SET category = ?, updated_at = ? WHERE id = ?").run(newCategory, now, req.params.id);
+    }
+
+    const noteText =
+      `Kategori diubah dari "${oldCategory}" ke "${newCategory}" oleh ${req.admin!.email}` +
+      (parsed.data.note ? `: ${parsed.data.note}` : "") +
+      (movedDivision ? " — disposisi sebelumnya direset karena berpindah divisi." : "");
+    db.prepare("INSERT INTO report_timeline (report_id, status, note, timestamp) VALUES (?, ?, ?, ?)").run(
+      req.params.id,
+      existing.status,
+      noteText,
+      now
+    );
+  });
+  run();
 
   const row = db.prepare("SELECT * FROM reports WHERE id = ?").get(req.params.id) as ReportRow;
   res.json(toReport(row));

@@ -1,4 +1,4 @@
-import { Report, ReportComment, ReportStatus, AdminRole } from "../types";
+import { Report, ReportComment, ReportStatus, ReportCategory, AdminRole } from "../types";
 import { Division } from "./divisions";
 
 // The app can be served from a subpath in production (e.g. "/lapor/"), so
@@ -53,6 +53,13 @@ export function moderateReport(ticketId: string, decision: "APPROVED" | "REJECTE
   return request<Report>(`/api/reports/${encodeURIComponent(ticketId)}/moderation`, {
     method: "PATCH",
     body: JSON.stringify({ decision }),
+  });
+}
+
+export function updateReportCategory(ticketId: string, category: ReportCategory, note?: string): Promise<Report> {
+  return request<Report>(`/api/reports/${encodeURIComponent(ticketId)}/category`, {
+    method: "PATCH",
+    body: JSON.stringify({ category, note }),
   });
 }
 

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { Check, ClipboardList, Clock, RefreshCw, XCircle, ChevronRight, ChevronLeft, MessageSquare, Shield, ShieldCheck, Lock, FileText, AlertTriangle, MessageSquareText, Users, Eye, UserCog, Download } from "lucide-react";
-import { Report, ReportStatus, UrgencyLevel, ReportComment, AdminRole, ModerationStatus } from "../types";
+import { Check, ClipboardList, Clock, RefreshCw, XCircle, ChevronRight, ChevronLeft, MessageSquare, Shield, ShieldCheck, Lock, FileText, AlertTriangle, MessageSquareText, Users, Eye, UserCog, Download, Tag } from "lucide-react";
+import { Report, ReportStatus, ReportCategory, UrgencyLevel, ReportComment, AdminRole, ModerationStatus } from "../types";
 import { Division, DIVISION_LABELS, divisionForCategory } from "../lib/divisions";
 import { generateWhatsAppStatusUpdateLink, generateWhatsAppStaffReplyLink } from "../utils/whatsapp";
-import { getHotline, updateHotline, getStaffInDivision, dispositionReport, moderateReport, exportReportsUrl, apiUrl, AdminUserEntry } from "../lib/api";
+import { getHotline, updateHotline, getStaffInDivision, dispositionReport, moderateReport, updateReportCategory, exportReportsUrl, apiUrl, AdminUserEntry } from "../lib/api";
 import AdminUserManagement from "./AdminUserManagement";
 
 interface AdminPanelProps {
@@ -42,6 +42,10 @@ export default function AdminPanel({ reports, adminRole, adminEmail, adminDivisi
   const [dispositionAssignee, setDispositionAssignee] = useState("");
   const [dispositionNoteInput, setDispositionNoteInput] = useState("");
   const [disposing, setDisposing] = useState(false);
+
+  const [categoryInput, setCategoryInput] = useState<ReportCategory>(ReportCategory.AKADEMIK);
+  const [categoryNoteInput, setCategoryNoteInput] = useState("");
+  const [updatingCategory, setUpdatingCategory] = useState(false);
 
   useEffect(() => {
     getHotline().then((data) => setHotlinePhone(data.phone)).catch(() => {});
@@ -90,6 +94,8 @@ export default function AdminPanel({ reports, adminRole, adminEmail, adminDivisi
     setReplyInput("");
     setDispositionAssignee("");
     setDispositionNoteInput("");
+    setCategoryInput(report.category);
+    setCategoryNoteInput("");
   };
 
   useEffect(() => {
@@ -115,6 +121,22 @@ export default function AdminPanel({ reports, adminRole, adminEmail, adminDivisi
       showNotification("Gagal mendisposisikan laporan.", "info");
     } finally {
       setDisposing(false);
+    }
+  };
+
+  const handleUpdateCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedReportId || !selectedReport || categoryInput === selectedReport.category) return;
+    setUpdatingCategory(true);
+    try {
+      await updateReportCategory(selectedReportId, categoryInput, categoryNoteInput.trim() || undefined);
+      await onRefreshReports();
+      setCategoryNoteInput("");
+      showNotification("Kategori laporan berhasil diperbarui!", "success");
+    } catch (err) {
+      showNotification("Gagal mengubah kategori laporan.", "info");
+    } finally {
+      setUpdatingCategory(false);
     }
   };
 
@@ -519,6 +541,44 @@ export default function AdminPanel({ reports, adminRole, adminEmail, adminDivisi
                   <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl flex items-center gap-2 text-xs text-slate-500">
                     <Eye className="w-4 h-4 text-slate-400 shrink-0" />
                     <span>Anda login sebagai Pimpinan — akses baca saja. Tindak lanjut (ubah status, disposisi, moderasi publikasi, balas resmi) hanya dapat dilakukan oleh Moderator, Staff, atau Super Admin.</span>
+                  </div>
+                )}
+
+                {/* Category reassignment — fix miscategorized reports before disposition */}
+                {canDispose && (
+                  <div className="space-y-3 bg-slate-50/40 p-4 rounded-xl border border-slate-100">
+                    <div className="flex items-center gap-2 border-b border-slate-100 pb-2 mb-2">
+                      <Tag className="w-4 h-4 text-slate-600" />
+                      <span className="text-xs font-bold text-slate-800 uppercase">Ubah Kategori</span>
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      Kategori saat ini: <span className="font-bold text-slate-700">{selectedReport.category}</span>. Ubah kalau laporan salah kategori saat disubmit — kalau kategori baru pindah divisi, disposisi yang sudah ada akan direset otomatis.
+                    </p>
+                    <form onSubmit={handleUpdateCategory} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <select
+                        value={categoryInput}
+                        onChange={(e) => setCategoryInput(e.target.value as ReportCategory)}
+                        className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-slate-500 cursor-pointer"
+                      >
+                        {Object.values(ReportCategory).map((cat) => (
+                          <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                      </select>
+                      <input
+                        type="text"
+                        value={categoryNoteInput}
+                        onChange={(e) => setCategoryNoteInput(e.target.value)}
+                        placeholder="Alasan perubahan (opsional)"
+                        className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-slate-500"
+                      />
+                      <button
+                        type="submit"
+                        disabled={updatingCategory || categoryInput === selectedReport.category}
+                        className="px-4 py-2 bg-slate-700 hover:bg-slate-800 disabled:opacity-60 text-white rounded-lg text-xs font-semibold cursor-pointer transition-all"
+                      >
+                        {updatingCategory ? "Menyimpan..." : "Simpan Kategori Baru"}
+                      </button>
+                    </form>
                   </div>
                 )}
 
