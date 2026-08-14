@@ -5,6 +5,7 @@ import { db } from "../db/connection";
 import { generateTicketId } from "../lib/ticketId";
 import { requireAdmin, requireModerator, requireActionable, SESSION_COOKIE_NAME } from "../middleware/requireAdmin";
 import { verifyAdminSession, AdminSession } from "../lib/jwt";
+import { logAudit } from "../lib/auditLog";
 import { divisionForCategory, categoriesForDivision } from "../../src/lib/divisions";
 import { ReportCategory, ReportStatus } from "../../src/types";
 import type { Report, ReportComment } from "../../src/types";
@@ -341,6 +342,14 @@ router.patch("/:id/status", requireActionable, (req, res) => {
   });
   run();
 
+  logAudit({
+    actorEmail: req.admin!.email,
+    action: "REPORT_STATUS_UPDATED",
+    targetType: "report",
+    targetId: req.params.id,
+    details: `Status diubah ke "${parsed.data.status}": ${parsed.data.note}`,
+  });
+
   const row = db.prepare("SELECT * FROM reports WHERE id = ?").get(req.params.id) as ReportRow;
   res.json(toReport(row));
 });
@@ -375,6 +384,14 @@ router.patch("/:id/disposition", requireModerator, (req, res) => {
     "UPDATE reports SET disposed_to_email = ?, disposition_note = ?, disposed_by = ?, disposed_at = ?, updated_at = ? WHERE id = ?"
   ).run(assigneeEmail, parsed.data.note ?? null, req.admin!.email, now, now, req.params.id);
 
+  logAudit({
+    actorEmail: req.admin!.email,
+    action: "REPORT_DISPOSITIONED",
+    targetType: "report",
+    targetId: req.params.id,
+    details: `Didisposisikan ke ${assigneeEmail}${parsed.data.note ? `: ${parsed.data.note}` : ""}`,
+  });
+
   const row = db.prepare("SELECT * FROM reports WHERE id = ?").get(req.params.id) as ReportRow;
   res.json(toReport(row));
 });
@@ -399,6 +416,14 @@ router.patch("/:id/moderation", requireModerator, (req, res) => {
     now,
     req.params.id
   );
+
+  logAudit({
+    actorEmail: req.admin!.email,
+    action: "REPORT_MODERATED",
+    targetType: "report",
+    targetId: req.params.id,
+    details: `Moderasi publikasi: ${parsed.data.decision}`,
+  });
 
   const row = db.prepare("SELECT * FROM reports WHERE id = ?").get(req.params.id) as ReportRow;
   res.json(toReport(row));
@@ -448,6 +473,14 @@ router.patch("/:id/category", requireModerator, (req, res) => {
     );
   });
   run();
+
+  logAudit({
+    actorEmail: req.admin!.email,
+    action: "REPORT_CATEGORY_CHANGED",
+    targetType: "report",
+    targetId: req.params.id,
+    details: `Kategori diubah dari "${oldCategory}" ke "${newCategory}"${parsed.data.note ? `: ${parsed.data.note}` : ""}`,
+  });
 
   const row = db.prepare("SELECT * FROM reports WHERE id = ?").get(req.params.id) as ReportRow;
   res.json(toReport(row));

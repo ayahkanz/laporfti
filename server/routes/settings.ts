@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { db } from "../db/connection";
 import { requireSuperAdmin } from "../middleware/requireAdmin";
+import { logAudit } from "../lib/auditLog";
 
 const router = Router();
 
@@ -44,6 +45,14 @@ router.put("/hotline", requireSuperAdmin, (req, res) => {
     }
   });
   run();
+
+  logAudit({
+    actorEmail: updatedBy,
+    action: "HOTLINE_UPDATED",
+    targetType: "setting",
+    targetId: "hotline",
+    details: `Nomor hotline diubah ke ${parsed.data.phone}${parsed.data.label ? ` (label: ${parsed.data.label})` : ""}`,
+  });
 
   res.json({ phone: parsed.data.phone, label: parsed.data.label, updatedAt: now });
 });

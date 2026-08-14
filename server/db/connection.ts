@@ -36,3 +36,10 @@ if (!moderationBackfillDone) {
     new Date().toISOString()
   );
 }
+
+// Same defensive-ALTER pattern as moderation_status above, for admin_users
+// tables that already existed before session_revoked_at was added.
+const adminUsersColumns = db.prepare("PRAGMA table_info(admin_users)").all() as { name: string }[];
+if (!adminUsersColumns.some((c) => c.name === "session_revoked_at")) {
+  db.exec("ALTER TABLE admin_users ADD COLUMN session_revoked_at TEXT");
+}

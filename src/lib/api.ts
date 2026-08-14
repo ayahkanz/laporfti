@@ -159,3 +159,24 @@ export async function removeAdminUser(email: string): Promise<void> {
 export function getStaffInDivision(division: Division): Promise<AdminUserEntry[]> {
   return request<AdminUserEntry[]>(`/api/admin-users/staff?division=${encodeURIComponent(division)}`);
 }
+
+export async function revokeAdminSession(email: string): Promise<{ ok: true; revokedAt: string }> {
+  return request(`/api/admin-users/${encodeURIComponent(email)}/revoke-session`, { method: "POST" });
+}
+
+export interface AuditLogEntry {
+  id: string;
+  actorEmail: string;
+  action: string;
+  targetType?: string;
+  targetId?: string;
+  details?: string;
+  createdAt: string;
+}
+
+export function getAuditLog(filters?: { actorEmail?: string }): Promise<AuditLogEntry[]> {
+  const query = new URLSearchParams();
+  if (filters?.actorEmail) query.set("actorEmail", filters.actorEmail);
+  const qs = query.toString();
+  return request<AuditLogEntry[]>(`/api/admin-users/audit-log${qs ? `?${qs}` : ""}`);
+}

@@ -1,15 +1,37 @@
 import { RequestHandler } from "express";
-import { verifyAdminSession, AdminRole } from "../lib/jwt";
+import { verifyAdminSession, AdminRole, AdminSession } from "../lib/jwt";
+import { db } from "../db/connection";
 
 export const SESSION_COOKIE_NAME = "lh_session";
 
+// Super Admin can force-logout a staff/moderator account (e.g. compromised
+// credentials, someone leaving the org) by setting session_revoked_at. Since
+// sessions are stateless JWTs (no server-side session table), this is
+// enforced by rejecting any token issued before that timestamp — effectively
+// every device/browser that account is logged into, not one session at a time.
+// Only accounts with an admin role can be revoked, so regular reporter
+// logins skip this DB lookup entirely.
+function isSessionRevoked(session: AdminSession): boolean {
+  if (!session.role || !session.iat) return false;
+  const row = db.prepare("SELECT session_revoked_at FROM admin_users WHERE email = ?").get(session.email) as
+    | { session_revoked_at: string | null }
+    | undefined;
+  if (!row?.session_revoked_at) return false;
+  return new Date(row.session_revoked_at).getTime() >= session.iat * 1000;
+}
+
 // Any authenticated UII account (student or staff), admin role or not. Gates
-// the app to civitas akademika only — used app-wide in server/app.ts.
+// the app to civitas akademika only — used app-wide in server/app.ts. This
+// runs before every other requireX below, so the revocation check here is
+// enough to cover them too.
 export const requireLogin: RequestHandler = (req, res, next) => {
   const token = req.cookies?.[SESSION_COOKIE_NAME];
   const session = token ? verifyAdminSession(token) : null;
   if (!session) {
     return res.status(401).json({ error: "unauthorized" });
+  }
+  if (isSessionRevoked(session)) {
+    return res.status(401).json({ error: "session_revoked" });
   }
   req.admin = session;
   next();

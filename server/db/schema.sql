@@ -2,12 +2,13 @@ PRAGMA journal_mode = WAL;
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS admin_users (
-  email       TEXT PRIMARY KEY,
-  name        TEXT,
-  role        TEXT NOT NULL CHECK (role IN ('SUPER_ADMIN','MODERATOR','PIMPINAN','STAFF')),
-  division    TEXT, -- required for MODERATOR/STAFF, null for SUPER_ADMIN/PIMPINAN; see src/lib/divisions.ts
-  added_by    TEXT,
-  created_at  TEXT NOT NULL
+  email               TEXT PRIMARY KEY,
+  name                TEXT,
+  role                TEXT NOT NULL CHECK (role IN ('SUPER_ADMIN','MODERATOR','PIMPINAN','STAFF')),
+  division            TEXT, -- required for MODERATOR/STAFF, null for SUPER_ADMIN/PIMPINAN; see src/lib/divisions.ts
+  added_by            TEXT,
+  created_at          TEXT NOT NULL,
+  session_revoked_at  TEXT -- when set, any session token issued before this timestamp is rejected (forced logout)
 );
 
 CREATE TABLE IF NOT EXISTS reports (
@@ -74,3 +75,19 @@ CREATE TABLE IF NOT EXISTS admin_logins (
   ip_address   TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_admin_logins_email ON admin_logins(email);
+
+-- Append-only trail of sensitive admin actions (status/disposition/moderation/
+-- category changes, admin account management, hotline changes, session
+-- revocations). Logins are tracked separately in admin_logins; the audit log
+-- API merges both for a single Super-Admin-facing view.
+CREATE TABLE IF NOT EXISTS audit_log (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  actor_email  TEXT NOT NULL,
+  action       TEXT NOT NULL,
+  target_type  TEXT,
+  target_id    TEXT,
+  details      TEXT,
+  created_at   TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_audit_log_created_at  ON audit_log(created_at);
+CREATE INDEX IF NOT EXISTS idx_audit_log_actor_email ON audit_log(actor_email);

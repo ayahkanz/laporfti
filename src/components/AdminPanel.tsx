@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { Check, ClipboardList, Clock, RefreshCw, XCircle, ChevronRight, ChevronLeft, MessageSquare, Shield, ShieldCheck, Lock, FileText, AlertTriangle, MessageSquareText, Users, Eye, UserCog, Download, Tag } from "lucide-react";
+import { Check, ClipboardList, Clock, RefreshCw, XCircle, ChevronRight, ChevronLeft, MessageSquare, Shield, ShieldCheck, Lock, FileText, AlertTriangle, MessageSquareText, Users, Eye, UserCog, Download, Tag, ScrollText } from "lucide-react";
 import { Report, ReportStatus, ReportCategory, UrgencyLevel, ReportComment, AdminRole, ModerationStatus } from "../types";
 import { Division, DIVISION_LABELS, divisionForCategory } from "../lib/divisions";
 import { generateWhatsAppStatusUpdateLink, generateWhatsAppStaffReplyLink } from "../utils/whatsapp";
 import { getHotline, updateHotline, getStaffInDivision, dispositionReport, moderateReport, updateReportCategory, exportReportsUrl, apiUrl, AdminUserEntry } from "../lib/api";
 import AdminUserManagement from "./AdminUserManagement";
+import AuditLogPanel from "./AuditLogPanel";
 
 interface AdminPanelProps {
   reports: Report[];
@@ -36,6 +37,7 @@ export default function AdminPanel({ reports, adminRole, adminEmail, adminDivisi
   const [hotlineSaving, setHotlineSaving] = useState(false);
   const [showWASettings, setShowWASettings] = useState(false);
   const [showUserManagement, setShowUserManagement] = useState(false);
+  const [showAuditLog, setShowAuditLog] = useState(false);
   const [notification, setNotification] = useState<{ message: string; type: "success" | "info" } | null>(null);
 
   const [dispositionStaff, setDispositionStaff] = useState<AdminUserEntry[]>([]);
@@ -281,6 +283,7 @@ export default function AdminPanel({ reports, adminRole, adminEmail, adminDivisi
                 onClick={() => {
                   setShowWASettings(!showWASettings);
                   setShowUserManagement(false);
+                  setShowAuditLog(false);
                 }}
                 className="px-3.5 py-2 bg-emerald-700/80 hover:bg-emerald-600 text-emerald-100 rounded-xl text-xs font-bold border border-emerald-500/40 flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
                 id="toggle-wa-settings-btn"
@@ -292,12 +295,25 @@ export default function AdminPanel({ reports, adminRole, adminEmail, adminDivisi
                 onClick={() => {
                   setShowUserManagement(!showUserManagement);
                   setShowWASettings(false);
+                  setShowAuditLog(false);
                 }}
                 className="px-3.5 py-2 bg-indigo-700/80 hover:bg-indigo-600 text-indigo-100 rounded-xl text-xs font-bold border border-indigo-500/40 flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
                 id="toggle-user-management-btn"
               >
                 <Users className="w-4 h-4 text-indigo-300" />
                 <span>Kelola Akun Admin</span>
+              </button>
+              <button
+                onClick={() => {
+                  setShowAuditLog(!showAuditLog);
+                  setShowWASettings(false);
+                  setShowUserManagement(false);
+                }}
+                className="px-3.5 py-2 bg-slate-700/80 hover:bg-slate-600 text-slate-200 rounded-xl text-xs font-bold border border-slate-500/40 flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                id="toggle-audit-log-btn"
+              >
+                <ScrollText className="w-4 h-4 text-slate-300" />
+                <span>Audit Log</span>
               </button>
             </>
           )}
@@ -380,6 +396,9 @@ export default function AdminPanel({ reports, adminRole, adminEmail, adminDivisi
       {showUserManagement && isSuperAdmin && (
         <AdminUserManagement currentUserEmail={adminEmail} onClose={() => setShowUserManagement(false)} />
       )}
+
+      {/* Audit Log Card */}
+      {showAuditLog && isSuperAdmin && <AuditLogPanel onClose={() => setShowAuditLog(false)} />}
 
       {notification && (
         <div

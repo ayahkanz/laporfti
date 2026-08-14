@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { UserPlus, Trash2, Users } from "lucide-react";
+import { UserPlus, Trash2, Users, LogOut } from "lucide-react";
 import { AdminRole } from "../types";
 import { DIVISIONS, DIVISION_LABELS, Division } from "../lib/divisions";
 import { ORG_DIRECTORY } from "../lib/orgDirectory";
-import { getAdminUsers, inviteAdminUser, updateAdminUserRole, removeAdminUser, AdminUserEntry } from "../lib/api";
+import { getAdminUsers, inviteAdminUser, updateAdminUserRole, removeAdminUser, revokeAdminSession, AdminUserEntry } from "../lib/api";
 
 const ROLE_LABELS: Record<AdminRole, string> = {
   SUPER_ADMIN: "Super Admin",
@@ -97,6 +97,18 @@ export default function AdminUserManagement({ currentUserEmail, onClose }: Admin
       await loadUsers();
     } catch (err) {
       setError("Gagal menghapus akun.");
+    }
+  };
+
+  const [revokedEmail, setRevokedEmail] = useState<string | null>(null);
+
+  const handleRevokeSession = async (email: string) => {
+    try {
+      await revokeAdminSession(email);
+      setRevokedEmail(email);
+      setTimeout(() => setRevokedEmail(null), 3000);
+    } catch (err) {
+      setError("Gagal mengakhiri sesi akun.");
     }
   };
 
@@ -198,6 +210,9 @@ export default function AdminUserManagement({ currentUserEmail, onClose }: Admin
               <div className="min-w-0">
                 <p className="text-xs font-bold text-slate-900 truncate">{u.name || u.email}</p>
                 <p className="text-[10px] text-slate-500 truncate">{u.email}</p>
+                {revokedEmail === u.email && (
+                  <p className="text-[10px] text-amber-600 font-semibold">Sesi diakhiri — akun ini akan diminta login ulang.</p>
+                )}
               </div>
               <div className="flex items-center gap-2 shrink-0 flex-wrap">
                 <select
@@ -222,6 +237,14 @@ export default function AdminUserManagement({ currentUserEmail, onClose }: Admin
                     ))}
                   </select>
                 )}
+                <button
+                  onClick={() => handleRevokeSession(u.email)}
+                  disabled={u.email === currentUserEmail}
+                  title={u.email === currentUserEmail ? "Tidak bisa mengakhiri sesi sendiri" : "Paksa akun ini logout dari semua perangkat"}
+                  className="p-1.5 text-amber-500 hover:text-amber-700 hover:bg-amber-50 rounded-lg cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
                 <button
                   onClick={() => handleRemove(u.email)}
                   disabled={u.email === currentUserEmail}

@@ -11,6 +11,9 @@ export interface AdminSession {
   name?: string;
   role?: AdminRole;
   division?: Division;
+  // Seconds-since-epoch the token was issued (standard JWT "iat" claim),
+  // used to check the token against admin_users.session_revoked_at.
+  iat?: number;
 }
 
 function getSecret(): string {
@@ -33,6 +36,7 @@ export function verifyAdminSession(token: string): AdminSession | null {
         name: (decoded as { name?: string }).name,
         role: (decoded as { role?: AdminRole }).role,
         division: (decoded as { division?: Division }).division,
+        iat: (decoded as { iat?: number }).iat,
       };
     }
     return null;
