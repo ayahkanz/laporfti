@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { Check, ClipboardList, Clock, RefreshCw, XCircle, ChevronRight, ChevronLeft, MessageSquare, Shield, ShieldCheck, Lock, FileText, AlertTriangle, MessageSquareText, Users, Eye, UserCog, Download, Tag, ScrollText } from "lucide-react";
+import { Check, ClipboardList, Clock, RefreshCw, XCircle, ChevronRight, ChevronLeft, MessageSquare, Shield, ShieldCheck, Lock, FileText, AlertTriangle, MessageSquareText, Users, Eye, UserCog, Download, Tag, ScrollText, Printer } from "lucide-react";
 import { Report, ReportStatus, ReportCategory, UrgencyLevel, ReportComment, AdminRole, ModerationStatus } from "../types";
 import { Division, DIVISION_LABELS, divisionForCategory } from "../lib/divisions";
 import { generateWhatsAppStatusUpdateLink, generateWhatsAppStaffReplyLink } from "../utils/whatsapp";
-import { getHotline, updateHotline, getStaffInDivision, dispositionReport, moderateReport, updateReportCategory, exportReportsUrl, apiUrl, AdminUserEntry } from "../lib/api";
+import { getHotline, updateHotline, getStaffInDivision, dispositionReport, moderateReport, updateReportCategory, exportReportsUrl, exportReportsPdfUrl, exportReportPdfUrl, apiUrl, AdminUserEntry } from "../lib/api";
 import AdminUserManagement from "./AdminUserManagement";
 import AuditLogPanel from "./AuditLogPanel";
 
@@ -276,6 +276,14 @@ export default function AdminPanel({ reports, adminRole, adminEmail, adminDivisi
           >
             <Download className="w-4 h-4 text-slate-300" />
             <span>Unduh Excel</span>
+          </a>
+          <a
+            href={exportReportsPdfUrl({ status: exportStatusFilter, category: exportCategoryFilter })}
+            className="px-3.5 py-2 bg-slate-700/80 hover:bg-slate-600 text-slate-100 rounded-xl text-xs font-bold border border-slate-500/40 flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+            id="export-reports-pdf-btn"
+          >
+            <FileText className="w-4 h-4 text-slate-300" />
+            <span>Unduh PDF</span>
           </a>
           {isSuperAdmin && (
             <>
@@ -553,18 +561,29 @@ export default function AdminPanel({ reports, adminRole, adminEmail, adminDivisi
                     </div>
                   </div>
 
-                  {selectedReport.reporterWhatsapp && (
+                  <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
                     <a
-                      href={generateWhatsAppStatusUpdateLink(selectedReport, selectedReport.status, "Salam, laporan Anda sedang dalam penanganan Dekanat FTI UII.")}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="self-start sm:self-center px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all shrink-0 cursor-pointer"
-                      title="Kirim Pesan WhatsApp ke Pelapor"
+                      href={exportReportPdfUrl(selectedReport.id)}
+                      className="px-3.5 py-2 bg-slate-700 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                      title="Cetak laporan ini sebagai PDF resmi"
+                      id="print-report-pdf-btn"
                     >
-                      <MessageSquareText className="w-4 h-4" />
-                      <span>Notifikasi WA</span>
+                      <Printer className="w-4 h-4" />
+                      <span>Cetak PDF</span>
                     </a>
-                  )}
+                    {selectedReport.reporterWhatsapp && (
+                      <a
+                        href={generateWhatsAppStatusUpdateLink(selectedReport, selectedReport.status, "Salam, laporan Anda sedang dalam penanganan Dekanat FTI UII.")}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                        title="Kirim Pesan WhatsApp ke Pelapor"
+                      >
+                        <MessageSquareText className="w-4 h-4" />
+                        <span>Notifikasi WA</span>
+                      </a>
+                    )}
+                  </div>
                 </div>
               </div>
 

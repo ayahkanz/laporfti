@@ -74,6 +74,18 @@ export function exportReportsUrl(filters?: { status?: string; category?: string 
   return apiUrl("api/reports/export") + (qs ? `?${qs}` : "");
 }
 
+export function exportReportsPdfUrl(filters?: { status?: string; category?: string }): string {
+  const query = new URLSearchParams();
+  if (filters?.status && filters.status !== "ALL") query.set("status", filters.status);
+  if (filters?.category && filters.category !== "ALL") query.set("category", filters.category);
+  const qs = query.toString();
+  return apiUrl("api/reports/export-pdf") + (qs ? `?${qs}` : "");
+}
+
+export function exportReportPdfUrl(ticketId: string): string {
+  return apiUrl(`api/reports/${encodeURIComponent(ticketId)}/export-pdf`);
+}
+
 export function addComment(ticketId: string, comment: Omit<ReportComment, "id" | "createdAt">): Promise<Report> {
   return request<Report>(`/api/reports/${encodeURIComponent(ticketId)}/comments`, {
     method: "POST",

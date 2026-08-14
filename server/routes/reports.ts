@@ -6,6 +6,7 @@ import { generateTicketId } from "../lib/ticketId";
 import { requireAdmin, requireModerator, requireActionable, SESSION_COOKIE_NAME } from "../middleware/requireAdmin";
 import { verifyAdminSession, AdminSession } from "../lib/jwt";
 import { logAudit } from "../lib/auditLog";
+import { generateReportsSummaryPdf, generateReportDetailPdf } from "../lib/reportPdf";
 import { divisionForCategory, categoriesForDivision } from "../../src/lib/divisions";
 import { ReportCategory, ReportStatus } from "../../src/types";
 import type { Report, ReportComment } from "../../src/types";
@@ -122,6 +123,22 @@ function buildAdminScopeFilter(session: AdminSession): { conditions: string[]; p
   return { conditions, params };
 }
 
+// Optional status/category query-param filters shared by the Excel and PDF
+// rekap exports — mutates conditions/params in place, ignoring anything that
+// doesn't match a known enum value.
+function applyExportFilters(req: import("express").Request, conditions: string[], params: unknown[]): void {
+  const statusFilter = typeof req.query.status === "string" ? req.query.status : undefined;
+  if (statusFilter && (Object.values(ReportStatus) as string[]).includes(statusFilter)) {
+    conditions.push("status = ?");
+    params.push(statusFilter);
+  }
+  const categoryFilter = typeof req.query.category === "string" ? req.query.category : undefined;
+  if (categoryFilter && (Object.values(ReportCategory) as string[]).includes(categoryFilter)) {
+    conditions.push("category = ?");
+    params.push(categoryFilter);
+  }
+}
+
 const createReportSchema = z.object({
   title: z.string().min(10).max(300),
   description: z.string().min(30).max(5000),
@@ -197,17 +214,7 @@ router.get("/", (req, res) => {
 // swallowed as a ticket id param.
 router.get("/export", requireAdmin, async (req, res) => {
   const { conditions, params } = buildAdminScopeFilter(req.admin!);
-
-  const statusFilter = typeof req.query.status === "string" ? req.query.status : undefined;
-  if (statusFilter && (Object.values(ReportStatus) as string[]).includes(statusFilter)) {
-    conditions.push("status = ?");
-    params.push(statusFilter);
-  }
-  const categoryFilter = typeof req.query.category === "string" ? req.query.category : undefined;
-  if (categoryFilter && (Object.values(ReportCategory) as string[]).includes(categoryFilter)) {
-    conditions.push("category = ?");
-    params.push(categoryFilter);
-  }
+  applyExportFilters(req, conditions, params);
 
   let sql = "SELECT * FROM reports";
   if (conditions.length) sql += " WHERE " + conditions.join(" AND ");
@@ -256,11 +263,49 @@ router.get("/export", requireAdmin, async (req, res) => {
   res.end();
 });
 
+// GET /api/reports/export-pdf — same scope/filters as /export, rendered as a
+// printable landscape PDF table instead of a spreadsheet.
+router.get("/export-pdf", requireAdmin, (req, res) => {
+  const { conditions, params } = buildAdminScopeFilter(req.admin!);
+  applyExportFilters(req, conditions, params);
+
+  let sql = "SELECT * FROM reports";
+  if (conditions.length) sql += " WHERE " + conditions.join(" AND ");
+  sql += " ORDER BY created_at DESC";
+  const rows = db.prepare(sql).all(...params) as ReportRow[];
+
+  const statusFilter = typeof req.query.status === "string" ? req.query.status : undefined;
+  const categoryFilter = typeof req.query.category === "string" ? req.query.category : undefined;
+  const filterLabel = `Filter: Status = ${statusFilter || "Semua"} · Kategori = ${categoryFilter || "Semua"}`;
+
+  const filename = `rekap-lapor-fit-${new Date().toISOString().slice(0, 10)}.pdf`;
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  const doc = generateReportsSummaryPdf(rows, filterLabel);
+  doc.pipe(res);
+});
+
 // GET /api/reports/:id
 router.get("/:id", (req, res) => {
   const row = db.prepare("SELECT * FROM reports WHERE id = ?").get(req.params.id) as ReportRow | undefined;
   if (!row) return res.status(404).json({ error: "not_found" });
   res.json(toReport(row));
+});
+
+// GET /api/reports/:id/export-pdf — formal single-ticket printout (letterhead,
+// full detail, handling timeline, signature block) for physical filing.
+// Any admin role may print a ticket they can view; unlike the mutating
+// endpoints this isn't restricted to canActOnReport's division/assignment
+// scope, since printing is a read action, not a state change.
+router.get("/:id/export-pdf", requireAdmin, (req, res) => {
+  const row = db.prepare("SELECT * FROM reports WHERE id = ?").get(req.params.id) as ReportRow | undefined;
+  if (!row) return res.status(404).json({ error: "not_found" });
+
+  const filename = `laporan-${row.id}.pdf`;
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  const doc = generateReportDetailPdf(toReport(row));
+  doc.pipe(res);
 });
 
 // POST /api/reports
