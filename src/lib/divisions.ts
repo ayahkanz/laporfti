@@ -19,9 +19,10 @@ export const DIVISION_LABELS: Record<Division, string> = {
 };
 
 // Maps each report category to the division responsible for handling it.
-// ReportCategory.LAINNYA is intentionally unmapped: it has no single owning
-// division in the org structure, so only SUPER_ADMIN/PIMPINAN can see it
-// until a Super Admin manually routes it.
+// ReportCategory.LAINNYA defaults to ADMINISTRASI_UMUM_RT (the same division
+// that already handles the other general-purpose categories, Sarpras and
+// Pelayanan) as a catch-all, and can still be manually reclassified to a
+// more specific category/division via the "Ubah Kategori" admin feature.
 export const CATEGORY_TO_DIVISION: Partial<Record<ReportCategory, Division>> = {
   [ReportCategory.AKADEMIK]: "ADMINISTRASI_AKADEMIK",
   [ReportCategory.SARPRAS]: "ADMINISTRASI_UMUM_RT",
@@ -30,6 +31,7 @@ export const CATEGORY_TO_DIVISION: Partial<Record<ReportCategory, Division>> = {
   [ReportCategory.KEUANGAN]: "ADMINISTRASI_KEUANGAN",
   [ReportCategory.KEMAHASISWAAN]: "KEMAHASISWAAN",
   [ReportCategory.ETIKA]: "KEMAHASISWAAN",
+  [ReportCategory.LAINNYA]: "ADMINISTRASI_UMUM_RT",
 };
 
 export function divisionForCategory(category: ReportCategory): Division | null {
