@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS reports (
   reporter_role       TEXT,
   reporter_email      TEXT NOT NULL,
   reporter_whatsapp   TEXT,
+  submitted_by_email  TEXT, -- authenticated session email at submission time (identity used to scope "my reports"; distinct from reporter_email, which is a user-editable contact field)
   is_public           INTEGER NOT NULL DEFAULT 1,
   attachment_name     TEXT,
   attachment_path     TEXT,
@@ -46,7 +47,9 @@ CREATE TABLE IF NOT EXISTS report_timeline (
   report_id   TEXT NOT NULL REFERENCES reports(id) ON DELETE CASCADE,
   status      TEXT NOT NULL,
   note        TEXT NOT NULL,
-  timestamp   TEXT NOT NULL
+  timestamp   TEXT NOT NULL,
+  actor_name  TEXT, -- who made this update ("Sistem" for the automatic entry on submission, else the acting staff member's name)
+  actor_email TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_timeline_report_id ON report_timeline(report_id);
 

@@ -23,7 +23,7 @@ export function generateWhatsAppReportConfirmationLink(report: Report): string {
   const phone = formatPhoneNumber(report.reporterWhatsapp || "");
   const appUrl = PORTAL_LINK;
 
-  const text = `*KONFIRMASI LAPORAN - LAPOR FIT FTI UII* 🏛️\n\n` +
+  const text = `*KONFIRMASI LAPORAN - LAPOR FTI FTI UII* 🏛️\n\n` +
     `Halo *${report.reporterName || "Mahasiswa FTI"}*,\n` +
     `Laporan aduan/aspirasi Anda telah berhasil terdaftar dalam sistem.\n\n` +
     `📌 *Kode Tiket:* \`${report.id}\`\n` +
@@ -50,15 +50,15 @@ export function generateWhatsAppStatusUpdateLink(
   const phone = formatPhoneNumber(report.reporterWhatsapp || "");
   const appUrl = PORTAL_LINK;
 
-  const text = `*UPDATE STATUS ADUAN - LAPOR FIT FTI UII* 🔔\n\n` +
+  const text = `*UPDATE STATUS ADUAN - LAPOR FTI FTI UII* 🔔\n\n` +
     `Yth. *${report.reporterName || "Pelapor"}*,\n` +
     `Pengaduan Anda dengan kode tiket *${report.id}* telah ditindaklanjuti oleh Dekanat/Staf FTI UII.\n\n` +
     `📋 *Judul Laporan:* ${report.title}\n` +
     `📊 *Status Terbaru:* *${newStatus.toUpperCase()}*\n` +
     `💬 *Catatan Tindak Lanjut:* "${note || "Status laporan telah diperbarui."}"\n\n` +
-    `Lacak linimasa selengkapnya di portal Lapor FIT:\n` +
+    `Lacak linimasa selengkapnya di portal Lapor FTI:\n` +
     `🔗 ${appUrl}\n\n` +
-    `_Lapor FIT • Fakultas Teknologi Industri Universitas Islam Indonesia_`;
+    `_Lapor FTI • Fakultas Teknologi Industri Universitas Islam Indonesia_`;
 
   return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
 }
@@ -74,13 +74,13 @@ export function generateWhatsAppStaffReplyLink(
   const phone = formatPhoneNumber(report.reporterWhatsapp || "");
   const appUrl = PORTAL_LINK;
 
-  const text = `*BALASAN RESMI STAF - LAPOR FIT FTI UII* 💬\n\n` +
+  const text = `*BALASAN RESMI STAF - LAPOR FTI FTI UII* 💬\n\n` +
     `Halo *${report.reporterName || "Pelapor"}*,\n` +
     `Terdapat balasan resmi dari *${staffName}* terkait pengaduan tiket *${report.id}*:\n\n` +
     `"${replyText}"\n\n` +
-    `Lihat rincian & kirim balasan melalui portal Lapor FIT:\n` +
+    `Lihat rincian & kirim balasan melalui portal Lapor FTI:\n` +
     `🔗 ${appUrl}\n\n` +
-    `_Lapor FIT FTI UII_`;
+    `_Lapor FTI FTI UII_`;
 
   return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
 }

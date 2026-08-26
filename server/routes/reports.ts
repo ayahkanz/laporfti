@@ -24,6 +24,7 @@ type ReportRow = {
   reporter_role: string | null;
   reporter_email: string;
   reporter_whatsapp: string | null;
+  submitted_by_email: string | null;
   is_public: number;
   moderation_status: string;
   attachment_name: string | null;
@@ -36,7 +37,14 @@ type ReportRow = {
   updated_at: string;
 };
 
-type TimelineRow = { report_id: string; status: string; note: string; timestamp: string };
+type TimelineRow = {
+  report_id: string;
+  status: string;
+  note: string;
+  timestamp: string;
+  actor_name: string | null;
+  actor_email: string | null;
+};
 type CommentRow = { id: string; report_id: string; sender_name: string; sender_role: "Admin" | "Mahasiswa"; content: string; created_at: string };
 
 const getTimelineStmt = db.prepare("SELECT * FROM report_timeline WHERE report_id = ? ORDER BY id ASC");
@@ -47,6 +55,7 @@ function toReport(row: ReportRow): Report {
     status: t.status as Report["status"],
     note: t.note,
     timestamp: t.timestamp,
+    actorName: t.actor_name ?? undefined,
   }));
   const comments = (getCommentsStmt.all(row.id) as CommentRow[]).map((c) => ({
     id: c.id,
@@ -193,9 +202,17 @@ router.get("/", (req, res) => {
     conditions.push("is_public = 1");
   } else if (session && !session.role) {
     // Logged-in but non-admin (plain UII account, e.g. student/staff/dosen
-    // reporter): only the approved public feed, never private or
-    // unapproved reports belonging to other users.
-    conditions.push("is_public = 1 AND moderation_status = 'APPROVED'");
+    // reporter): the approved public feed, PLUS their own reports regardless
+    // of publication/moderation status (so they can always track what they
+    // submitted) — never other users' private or unapproved reports.
+    // submitted_by_email is the authoritative match (set server-side from
+    // the session at creation time, can't be spoofed via the form); the
+    // LOWER(reporter_email) comparison is a fallback for reports submitted
+    // before that column existed.
+    conditions.push(
+      "(is_public = 1 AND moderation_status = 'APPROVED') OR submitted_by_email = ? OR LOWER(reporter_email) = ?"
+    );
+    params.push(session.email.toLowerCase(), session.email.toLowerCase());
   }
   // SUPER_ADMIN, PIMPINAN, and unauthenticated bulk fetches (no isPublic
   // param) get the full list — the latter preserves the existing public
@@ -321,16 +338,16 @@ router.post("/", (req, res) => {
   const insertReport = db.prepare(`
     INSERT INTO reports (
       id, title, description, category, status, urgency,
-      reporter_name, reporter_role, reporter_email, reporter_whatsapp,
+      reporter_name, reporter_role, reporter_email, reporter_whatsapp, submitted_by_email,
       is_public, attachment_name, attachment_path, created_at, updated_at
     ) VALUES (
       @id, @title, @description, @category, 'Menunggu Verifikasi', @urgency,
-      @reporterName, @reporterRole, @reporterEmail, @reporterWhatsapp,
+      @reporterName, @reporterRole, @reporterEmail, @reporterWhatsapp, @submittedByEmail,
       @isPublic, @attachmentName, @attachmentPath, @createdAt, @updatedAt
     )
   `);
   const insertTimeline = db.prepare(`
-    INSERT INTO report_timeline (report_id, status, note, timestamp) VALUES (?, ?, ?, ?)
+    INSERT INTO report_timeline (report_id, status, note, timestamp, actor_name, actor_email) VALUES (?, ?, ?, ?, ?, ?)
   `);
 
   const run = db.transaction(() => {
@@ -344,6 +361,7 @@ router.post("/", (req, res) => {
       reporterRole: body.reporterRole ?? null,
       reporterEmail: body.reporterEmail,
       reporterWhatsapp: body.reporterWhatsapp ?? null,
+      submittedByEmail: req.admin!.email.toLowerCase(),
       isPublic: body.isPublic ? 1 : 0,
       attachmentName: body.attachmentName ?? null,
       attachmentPath: body.attachmentPath ?? null,
@@ -353,8 +371,10 @@ router.post("/", (req, res) => {
     insertTimeline.run(
       id,
       "Menunggu Verifikasi",
-      "Laporan berhasil terkirim melalui Portal Lapor FIT. Menunggu peninjauan awal oleh staf administrasi FTI.",
-      now
+      "Laporan berhasil terkirim melalui Portal Lapor FTI. Menunggu peninjauan awal oleh staf administrasi FTI.",
+      now,
+      "Sistem",
+      null
     );
   });
   run();
@@ -378,11 +398,15 @@ router.patch("/:id/status", requireActionable, (req, res) => {
   const now = new Date().toISOString();
   const run = db.transaction(() => {
     db.prepare("UPDATE reports SET status = ?, updated_at = ? WHERE id = ?").run(parsed.data.status, now, req.params.id);
-    db.prepare("INSERT INTO report_timeline (report_id, status, note, timestamp) VALUES (?, ?, ?, ?)").run(
+    db.prepare(
+      "INSERT INTO report_timeline (report_id, status, note, timestamp, actor_name, actor_email) VALUES (?, ?, ?, ?, ?, ?)"
+    ).run(
       req.params.id,
       parsed.data.status,
       parsed.data.note,
-      now
+      now,
+      req.admin!.name || req.admin!.email,
+      req.admin!.email
     );
   });
   run();
@@ -510,11 +534,15 @@ router.patch("/:id/category", requireModerator, (req, res) => {
       `Kategori diubah dari "${oldCategory}" ke "${newCategory}" oleh ${req.admin!.email}` +
       (parsed.data.note ? `: ${parsed.data.note}` : "") +
       (movedDivision ? " — disposisi sebelumnya direset karena berpindah divisi." : "");
-    db.prepare("INSERT INTO report_timeline (report_id, status, note, timestamp) VALUES (?, ?, ?, ?)").run(
+    db.prepare(
+      "INSERT INTO report_timeline (report_id, status, note, timestamp, actor_name, actor_email) VALUES (?, ?, ?, ?, ?, ?)"
+    ).run(
       req.params.id,
       existing.status,
       noteText,
-      now
+      now,
+      req.admin!.name || req.admin!.email,
+      req.admin!.email
     );
   });
   run();

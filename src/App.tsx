@@ -5,6 +5,7 @@ import PortalHeader from "./components/PortalHeader";
 import HomeView from "./components/HomeView";
 import ReportForm from "./components/ReportForm";
 import ReportTracker from "./components/ReportTracker";
+import MyReports from "./components/MyReports";
 import PublicFeed from "./components/PublicFeed";
 import AdminPanel from "./components/AdminPanel";
 import MobileBottomNav from "./components/MobileBottomNav";
@@ -129,7 +130,7 @@ export default function App() {
             <Building2 className="w-3.5 h-3.5" />
             <span>Portal FTI UII</span>
             <span>&gt;</span>
-            <span className="text-slate-600">Lapor FIT (Aspirasi & Keluhan)</span>
+            <span className="text-slate-600">Lapor FTI (Aspirasi & Keluhan)</span>
           </div>
         </div>
 
@@ -178,6 +179,7 @@ export default function App() {
                   onSubmit={handleAddNewReport}
                   setActiveTab={setActiveTab}
                   setSearchTicketId={setSearchTicketId}
+                  defaultEmail={auth.email}
                 />
               )}
               {activeTab === "track" && (
@@ -186,6 +188,14 @@ export default function App() {
                   searchTicketId={searchTicketId}
                   setSearchTicketId={setSearchTicketId}
                   onAddComment={handleAddComment}
+                />
+              )}
+              {activeTab === "mine" && (
+                <MyReports
+                  reports={reports}
+                  userEmail={auth.email}
+                  setActiveTab={setActiveTab}
+                  setSearchTicketId={setSearchTicketId}
                 />
               )}
               {activeTab === "feed" && (

@@ -324,6 +324,11 @@ export default function ReportTracker({
                         <p className="text-slate-600 text-xs leading-relaxed">
                           {step.note}
                         </p>
+                        {step.actorName && (
+                          <p className="text-slate-400 text-[10px] font-semibold">
+                            — {step.actorName}
+                          </p>
+                        )}
                       </div>
                     </div>
                   );

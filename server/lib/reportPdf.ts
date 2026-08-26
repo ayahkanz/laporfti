@@ -44,7 +44,7 @@ export function generateReportsSummaryPdf(rows: SummaryRow[], filterLabel: strin
     { key: "created_at", label: "Tanggal Masuk", width: 90 },
   ] as const;
 
-  doc.fontSize(14).font("Helvetica-Bold").text("Rekap Laporan — Lapor FIT FTI UII", { align: "center" });
+  doc.fontSize(14).font("Helvetica-Bold").text("Rekap Laporan — Lapor FTI FTI UII", { align: "center" });
   doc.fontSize(9).font("Helvetica").text(filterLabel, { align: "center" });
   doc.text(`Dicetak: ${formatDate(new Date().toISOString())} · Total: ${rows.length} laporan`, { align: "center" });
   doc.moveDown(1);
@@ -160,6 +160,7 @@ export function generateReportDetailPdf(report: Report): PDFKit.PDFDocument {
   for (const entry of report.timeline) {
     doc.font("Helvetica-Bold").text(`${formatDate(entry.timestamp)} — ${entry.status}`, { continued: false });
     doc.font("Helvetica").text(entry.note);
+    if (entry.actorName) doc.fontSize(8).fillColor("#666666").text(`Oleh: ${entry.actorName}`).fillColor("#000000").fontSize(9);
     doc.moveDown(0.4);
   }
 
@@ -197,7 +198,7 @@ export function generateReportDetailPdf(report: Report): PDFKit.PDFDocument {
   doc.text("(_________________________)", rightX, sigY + 75, { width: colWidth, align: "center" });
 
   doc.moveDown(1.5);
-  doc.fontSize(8).fillColor("#666666").text(`Dokumen dicetak otomatis dari Portal Lapor FIT pada ${formatDate(new Date().toISOString())}.`, {
+  doc.fontSize(8).fillColor("#666666").text(`Dokumen dicetak otomatis dari Portal Lapor FTI pada ${formatDate(new Date().toISOString())}.`, {
     align: "center",
   });
 

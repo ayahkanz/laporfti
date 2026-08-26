@@ -24,7 +24,7 @@ export default function LoginGate({ onLogin, onDevLogin, errorMsg, onDismissErro
           <Award className="w-8 h-8 text-indigo-600" />
         </div>
         <div className="space-y-2">
-          <h1 className="text-xl font-extrabold text-slate-900">Lapor FIT</h1>
+          <h1 className="text-xl font-extrabold text-slate-900">Lapor FTI</h1>
           <p className="text-xs text-slate-500 uppercase tracking-wider font-bold flex items-center justify-center gap-1.5">
             <Building2 className="w-3.5 h-3.5" />
             Fakultas Teknologi Industri UII

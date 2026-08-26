@@ -43,3 +43,21 @@ const adminUsersColumns = db.prepare("PRAGMA table_info(admin_users)").all() as 
 if (!adminUsersColumns.some((c) => c.name === "session_revoked_at")) {
   db.exec("ALTER TABLE admin_users ADD COLUMN session_revoked_at TEXT");
 }
+
+// Same defensive-ALTER pattern, for reports.submitted_by_email — the
+// authoritative identity used to scope a reporter's own tickets (see
+// server/routes/reports.ts GET /).
+const reportsColumnsForIdentity = db.prepare("PRAGMA table_info(reports)").all() as { name: string }[];
+if (!reportsColumnsForIdentity.some((c) => c.name === "submitted_by_email")) {
+  db.exec("ALTER TABLE reports ADD COLUMN submitted_by_email TEXT");
+}
+
+// Same defensive-ALTER pattern, for report_timeline's actor columns (who
+// made each timeline update).
+const timelineColumns = db.prepare("PRAGMA table_info(report_timeline)").all() as { name: string }[];
+if (!timelineColumns.some((c) => c.name === "actor_name")) {
+  db.exec("ALTER TABLE report_timeline ADD COLUMN actor_name TEXT");
+}
+if (!timelineColumns.some((c) => c.name === "actor_email")) {
+  db.exec("ALTER TABLE report_timeline ADD COLUMN actor_email TEXT");
+}

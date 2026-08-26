@@ -66,6 +66,7 @@ export interface Report {
     status: ReportStatus;
     note: string;
     timestamp: string;
+    actorName?: string; // who made this update ("Sistem" for the automatic entry on submission)
   }[];
   comments: ReportComment[];
 }

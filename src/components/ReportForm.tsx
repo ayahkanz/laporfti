@@ -13,15 +13,19 @@ interface ReportFormProps {
   ) => Promise<Report>;
   setActiveTab: (tab: string) => void;
   setSearchTicketId: (id: string) => void;
+  defaultEmail?: string;
 }
 
-export default function ReportForm({ onSubmit, setActiveTab, setSearchTicketId }: ReportFormProps) {
+export default function ReportForm({ onSubmit, setActiveTab, setSearchTicketId, defaultEmail }: ReportFormProps) {
   // Form states
   const [nama, setNama] = useState("");
   const [isAnonim, setIsAnonim] = useState(false);
   const [reporterRole, setReporterRole] = useState<ReporterRole>(ReporterRole.MAHASISWA);
   const [nim, setNim] = useState("");
-  const [email, setEmail] = useState("");
+  // Defaults to the logged-in Google account's email — still editable, since
+  // a reporter may want a different contact email, but this saves typing in
+  // the common case and makes "Laporan Saya" matching more reliable.
+  const [email, setEmail] = useState(defaultEmail || "");
   const [whatsapp, setWhatsapp] = useState("");
   const [category, setCategory] = useState(ReportCategory.AKADEMIK);
   const [urgency, setUrgency] = useState(UrgencyLevel.SEDANG);

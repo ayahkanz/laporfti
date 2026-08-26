@@ -40,6 +40,7 @@ export default function PortalHeader({
     { id: "home", label: "Beranda" },
     { id: "create", label: "Buat Laporan" },
     { id: "track", label: "Lacak Laporan" },
+    { id: "mine", label: "Laporan Saya" },
     { id: "feed", label: "Laporan Publik" },
   ];
 
@@ -62,7 +63,7 @@ export default function PortalHeader({
             </div>
             <div>
               <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white via-indigo-200 to-indigo-100 bg-clip-text text-transparent">
-                Lapor FIT
+                Lapor FTI
               </h1>
               <p className="text-indigo-300 text-xs font-semibold uppercase tracking-wider">
                 Fakultas Teknologi Industri

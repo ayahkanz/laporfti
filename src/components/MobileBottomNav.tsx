@@ -1,5 +1,5 @@
 import React from "react";
-import { Home, PlusCircle, Search, MessageSquare, ShieldCheck } from "lucide-react";
+import { Home, PlusCircle, Search, MessageSquare, ShieldCheck, ClipboardList } from "lucide-react";
 
 interface MobileBottomNavProps {
   activeTab: string;
@@ -18,6 +18,7 @@ export default function MobileBottomNav({
     { id: "home", label: "Beranda", icon: Home },
     { id: "create", label: "Lapor", icon: PlusCircle, isHighlight: true },
     { id: "track", label: "Lacak", icon: Search },
+    { id: "mine", label: "Punya Saya", icon: ClipboardList },
     { id: "feed", label: "Publik", icon: MessageSquare },
   ];
 
@@ -27,7 +28,7 @@ export default function MobileBottomNav({
       id="mobile-bottom-nav"
     >
       {!isAdmin ? (
-        <div className="grid grid-cols-4 gap-1 items-center max-w-md mx-auto">
+        <div className="grid grid-cols-5 gap-1 items-center max-w-md mx-auto">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
