@@ -20,7 +20,7 @@
     "better-sqlite3": "^13.0.3",
     "cookie-parser": "^1.4.7",
     "dotenv": "^17.2.3",
-    "exceljs": "^4.4.0",
+    "exceljs": "^3.10.0",
     "express": "^4.21.2",
     "express-rate-limit": "^8.6.2",
     "google-auth-library": "^11.0.0",
