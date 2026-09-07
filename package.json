@@ -10,7 +10,7 @@
     "build": "vite build --mode production",
     "start": "NODE_ENV=production tsx server/index.ts",
     "preview": "vite preview",
-    "clean": "rm -rf dist data/*.db* uploads/*",
+    "clean": "node -e \"if(process.env.NODE_ENV==='production'){console.error('Refusing: NODE_ENV=production — clean would delete live uploads/db.');process.exit(1)}\" && rm -rf dist data/*.db* uploads/*",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
