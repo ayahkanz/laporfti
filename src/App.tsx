@@ -14,7 +14,15 @@ import { Building2 } from "lucide-react";
 
 import { Division } from "./lib/divisions";
 
-type AuthState = { status: "loading" | "authenticated" | "unauthenticated"; email?: string; name?: string; role?: AdminRole; division?: Division };
+type AuthState = {
+  status: "loading" | "authenticated" | "unauthenticated";
+  email?: string;
+  name?: string;
+  role?: AdminRole;
+  division?: Division;
+  impersonating?: boolean;
+  impersonatedBy?: string;
+};
 
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
   domain_not_allowed: "Login gagal: portal ini hanya untuk civitas akademika UII (email @uii.ac.id atau subdomainnya, misal @students.uii.ac.id).",
@@ -43,7 +51,15 @@ export default function App() {
     const me = await api.getMe();
     setAuth(
       me.authenticated
-        ? { status: "authenticated", email: me.email, name: me.name, role: me.role, division: me.division }
+        ? {
+            status: "authenticated",
+            email: me.email,
+            name: me.name,
+            role: me.role,
+            division: me.division,
+            impersonating: me.impersonating,
+            impersonatedBy: me.impersonatedBy,
+          }
         : { status: "unauthenticated" }
     );
   };
@@ -79,6 +95,12 @@ export default function App() {
 
   const handleLogout = async () => {
     await api.logout();
+    setReports([]);
+    await refreshAuth();
+  };
+
+  const handleEndImpersonation = async () => {
+    await api.endImpersonation();
     setReports([]);
     await refreshAuth();
   };
@@ -134,6 +156,20 @@ export default function App() {
           </div>
         </div>
 
+        {auth.impersonating && (
+          <div className="bg-amber-50 border border-amber-300 text-amber-900 px-4 py-3 rounded-xl text-xs font-semibold flex items-center justify-between gap-3">
+            <span>
+              Anda login sebagai <strong>{auth.email}</strong> ({auth.role ?? "Pelapor"}) — diimpersonasi oleh {auth.impersonatedBy}
+            </span>
+            <button
+              onClick={handleEndImpersonation}
+              className="shrink-0 bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-lg cursor-pointer"
+            >
+              Akhiri Impersonasi
+            </button>
+          </div>
+        )}
+
         {authErrorMsg && (
           <div className="bg-rose-50 border border-rose-200 text-rose-800 px-4 py-3 rounded-xl text-xs font-semibold flex items-center justify-between gap-3">
             <span>{authErrorMsg}</span>
@@ -164,6 +200,7 @@ export default function App() {
               onUpdateStatus={handleUpdateStatusAndNote}
               onAddComment={handleAddComment}
               onRefreshReports={refreshReports}
+              onRefreshAuth={refreshAuth}
             />
           ) : (
             <div className="transition-all duration-300">

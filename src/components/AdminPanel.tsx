@@ -15,9 +15,10 @@ interface AdminPanelProps {
   onUpdateStatus: (ticketId: string, status: ReportStatus, note: string) => Promise<void>;
   onAddComment: (ticketId: string, comment: ReportComment) => Promise<void>;
   onRefreshReports: () => Promise<void>;
+  onRefreshAuth: () => Promise<void>;
 }
 
-export default function AdminPanel({ reports, adminRole, adminEmail, adminDivision, onUpdateStatus, onAddComment, onRefreshReports }: AdminPanelProps) {
+export default function AdminPanel({ reports, adminRole, adminEmail, adminDivision, onUpdateStatus, onAddComment, onRefreshReports, onRefreshAuth }: AdminPanelProps) {
   const isSuperAdmin = adminRole === "SUPER_ADMIN";
   // Can act on a report's status/replies: Super Admin, division Moderators, and
   // Staff executing a ticket disposed to them. Backend re-verifies per-report scope.
@@ -402,7 +403,7 @@ export default function AdminPanel({ reports, adminRole, adminEmail, adminDivisi
 
       {/* Admin User Management Card */}
       {showUserManagement && isSuperAdmin && (
-        <AdminUserManagement currentUserEmail={adminEmail} onClose={() => setShowUserManagement(false)} />
+        <AdminUserManagement currentUserEmail={adminEmail} onClose={() => setShowUserManagement(false)} onRefreshAuth={onRefreshAuth} />
       )}
 
       {/* Audit Log Card */}
