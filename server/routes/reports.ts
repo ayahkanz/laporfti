@@ -385,9 +385,18 @@ router.post("/", (req, res) => {
   // reporter's response. sendNotificationEmail catches its own errors.
   const division = divisionForCategory(body.category as Report["category"]);
   if (division) {
-    const moderators = db
+    let moderators = db
       .prepare("SELECT email, name FROM admin_users WHERE role = 'MODERATOR' AND division = ?")
       .all(division) as { email: string; name: string | null }[];
+    // No Moderator registered for this division yet (e.g. its lead is
+    // currently Super Admin instead) — fall back to Super Admins so the
+    // report still notifies someone rather than nobody.
+    if (moderators.length === 0) {
+      moderators = db.prepare("SELECT email, name FROM admin_users WHERE role = 'SUPER_ADMIN'").all() as {
+        email: string;
+        name: string | null;
+      }[];
+    }
     for (const moderator of moderators) {
       sendNotificationEmail(
         moderator.email,
